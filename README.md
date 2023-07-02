@@ -105,6 +105,7 @@ points.
 ## References
 
 * [Dotbot tutorial by framework author](https://anishathalye.com/managing-your-dotfiles/)
+* [Another dotbot tutorial](https://www.elliotdenolf.com/blog/bootstrap-your-dotfiles-with-dotbot)
 * [](https://brandon.invergo.net/news/2012-05-26-using-gnu-stow-to-manage-your-dotfiles.html)
 * [](https://www.youtube.com/watch?v=CxAT1u8G7is)
 
