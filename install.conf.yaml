@@ -37,4 +37,9 @@
 - shell:
   # Checks out the commit stored in the submodule repo, into the working directory
   - [git submodule update --init --recursive, Installing submodules]
-  # TODO: Run macOS configuration script (must be idempotent!)
+  -
+    command: ~/.dotfiles/script/macos.sh
+    description: Setting macOS defaults
+    stdin: true
+    stdout: true
+    stderr: true
