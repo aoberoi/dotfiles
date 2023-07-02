@@ -1,0 +1,6 @@
+#
+# Settings for login shells (not dependant on interactivity)
+#
+
+# Homebrew initialization (prepends to $PATH)
+eval "$(/opt/homebrew/bin/brew shellenv)"

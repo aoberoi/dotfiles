@@ -7,9 +7,9 @@
       # Remove the old target if its a symlink
       relink: true
 
-#
+# ---
 # Initialization procedure. Each item below is a step that executes in order.
-#
+# ---
 
 # Remove dead symlinks (not recursive)
 - clean: ['~']
@@ -17,10 +17,16 @@
 # Create symlinks
 - link:
     # target : source
+
+    # zsh config
     ~/.zprofile: zsh/zprofile
     ~/.zshrc: zsh/zshrc
+
     # TODO: gitignore stuff
     # TODO: ssh stuff
+
+    # Create a "permalink" to the working copy of this repo, so other scripts can easily find the path
+    ~/.dotfiles: ""
 
 # Create empty directories
 # - create:
