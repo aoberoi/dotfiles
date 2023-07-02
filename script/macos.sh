@@ -10,7 +10,7 @@
 
 # Disable press-and-hold for keys in favor of key repeat
 # The press-and-hold accents menu interferes with I often hold down keys to repeat in vim mode
-defaults write NSGlobalDomain ApplePressAndHoldEnabled -bool false
+defaults write -g ApplePressAndHoldEnabled -bool false
 
 # Keyboard repeat rate
 # https://mac-os-key-repeat.vercel.app/
@@ -22,3 +22,5 @@ defaults write NSGlobalDomain NSAutomaticPeriodSubstitutionEnabled -bool false
 
 # Increase sound quality for Bluetooth headphones/headsets
 # defaults write com.apple.BluetoothAudioAgent "Apple Bitpool Min (editable)" -int 40
+
+echo "Log out and log back in for macOS settings to take effect."
