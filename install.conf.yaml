@@ -1,0 +1,34 @@
+# Dotbot configuration script for idempotently installing managed dotfiles into system
+# Reference: https://github.com/anishathalye/dotbot#configuration
+
+# A space for command options that should be reused each time a certain kind of command is run.
+- defaults:
+    link:
+      # Remove the old target if its a symlink
+      relink: true
+
+#
+# Initialization procedure. Each item below is a step that executes in order.
+#
+
+# Remove dead symlinks (not recursive)
+- clean: ['~']
+
+# Create symlinks
+- link:
+    # target : source
+    ~/.zprofile: zsh/zprofile
+    ~/.zshrc: zsh/zshrc
+    # TODO: gitignore stuff
+    # TODO: ssh stuff
+
+# Create empty directories
+# - create:
+#     - ~/downloads
+#     - ~/.vim/undo-history
+
+# Execute shell commands
+- shell:
+  # Checks out the commit stored in the submodule repo, into the working directory
+  - [git submodule update --init --recursive, Installing submodules]
+  # TODO: Run macOS configuration script (must be idempotent!)
