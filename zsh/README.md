@@ -43,13 +43,27 @@ SSH sessions are both **login and interactive shells**.
 * `~/.zlogin` - Don't need this. Just use `~/.zprofile`.
 * `~/.zlogout` - Release any resources obtained in `~/.zprofile`. Could be used to reset a terminal window title.
 
+### Plugin management
 
-### Performance
+This repo uses [antidote](https://getantidote.github.io/) to manage zsh plugins. It's quite an active and helpful
+project, and doesn't cost too much on performance.
 
-Current zsh-bench results:
+### Quick look at antidote performance
+
+I ran [zsh-bench](https://github.com/romkatv/zsh-bench#usage) on two barebones configurations, accomplishing the same
+thing. Both configurations use one plugin (the pure prompt) The first does not have antidote and the second does have
+antidote. This helps me judge how much time it costs to use antidote. Bottom line: its not perceptible.
+
+<table>
+<tr>
+  <td>no antidote</td>
+  <td>antidote</td>
+  <td>change</td>
+</tr>
+<tr>
+  <td>
 
 ```
-==> benchmarking login shell of user ankur ...
 creates_tty=0
 has_compsys=1
 has_syntax_highlighting=0
@@ -61,6 +75,36 @@ command_lag_ms=1.193
 input_lag_ms=1.593
 exit_time_ms=78.113
 ```
+
+  </td>
+  <td>
+
+```
+creates_tty=0
+has_compsys=1
+has_syntax_highlighting=0
+has_autosuggestions=0
+has_git_prompt=0
+first_prompt_lag_ms=77.781
+first_command_lag_ms=78.152
+command_lag_ms=1.201
+input_lag_ms=1.696
+exit_time_ms=80.483
+```
+
+  </td>
+  <td>
+
+<p>First prompt lag: +2.309ms / +3.06% </p>
+<p>First command lag: +2.25ms / +2.96%% </p>
+<p>Command lag: +0.008ms / +0.67%% </p>
+<p>Input lag: +0.103ms / +6.47%% </p>
+<p>Exit time: +2.37ms / +3.03%% </p>
+
+  </td>
+</tr>
+</table>
+
 
 ### Resources
 

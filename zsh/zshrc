@@ -12,8 +12,13 @@ then
   compinit
 fi
 
+# source antidote
+source ${HOME}/.dotfiles/zsh/antidote/antidote.zsh
+
+# initialize plugins statically with ./zsh_plugins
+antidote load ${HOME}/.dotfiles/zsh/zsh_plugins
+
 # Pure prompt (https://github.com/sindresorhus/pure)
-fpath+=($HOME/.dotfiles/zsh/pure)
 autoload -U promptinit; promptinit
 # more Pure config here
 prompt pure
