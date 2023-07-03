@@ -11,3 +11,9 @@ then
   autoload -Uz compinit
   compinit
 fi
+
+# Pure prompt (https://github.com/sindresorhus/pure)
+fpath+=($HOME/.dotfiles/zsh/pure)
+autoload -U promptinit; promptinit
+# more Pure config here
+prompt pure
