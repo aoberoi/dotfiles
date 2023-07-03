@@ -100,7 +100,7 @@ points.
 ## Questions
 
 - [ ] How do I manage secrets? I'm thinking about data that belongs in the `~/.ssh/` directory. Can 1Password help with
-  this? Looking into this - https://sgoel.dev/posts/replacing-gnu-stow-with-dotbot/#encrypted-files.
+  this?
 
 ## References
 

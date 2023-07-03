@@ -24,7 +24,13 @@
 
     # git config
     ~/.gitconfig: git/gitconfig
-    # TODO: ssh stuff
+    # TODO: pure prompt
+    # TODO: nvm, automatic `nvm use` after changing directories (dotfiles)
+    # TODO: rust + rustup + cargo
+    # TODO: golang
+    # TODO: terminal profile
+    # TODO: maybe zgen for zsh plugins? (dotfiles2)
+    # TODO: maybe rbenv?
 
     # Create a "permalink" to the working copy of this repo, so other scripts can easily find the path
     ~/.dotfiles: ""
