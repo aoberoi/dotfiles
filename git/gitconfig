@@ -1,0 +1,14 @@
+[user]
+	name = Ankur Oberoi
+	email = aoberoi@gmail.com
+[core]
+	excludesfile = ~/.dotfiles/git/gitignore_global
+[alias]
+	lol = log --decorate --oneline --graph
+[init]
+	defaultBranch = main
+[credential]
+	helper =
+	helper = /usr/local/share/gcm-core/git-credential-manager
+[credential "https://dev.azure.com"]
+	useHttpPath = true
