@@ -24,7 +24,6 @@
 
     # git config
     ~/.gitconfig: git/gitconfig
-    # TODO: pure prompt
     # TODO: nvm, automatic `nvm use` after changing directories (dotfiles)
     # TODO: rust + rustup + cargo
     # TODO: golang

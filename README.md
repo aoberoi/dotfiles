@@ -70,6 +70,13 @@ install.
 $ git submodule update --init --remote
 ```
 
+#### Adding a submodule
+
+```
+$ git submodule add https://example.com/submodule-repo.git path
+$ git commit -m "adding submodule"
+```
+
 ## Framework
 
 This repo uses the [dotbot](https://github.com/anishathalye/dotbot) project as a framework for managing dotfiles.
