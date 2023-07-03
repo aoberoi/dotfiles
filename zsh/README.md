@@ -44,6 +44,24 @@ SSH sessions are both **login and interactive shells**.
 * `~/.zlogout` - Release any resources obtained in `~/.zprofile`. Could be used to reset a terminal window title.
 
 
+### Performance
+
+Current zsh-bench results:
+
+```
+==> benchmarking login shell of user ankur ...
+creates_tty=0
+has_compsys=1
+has_syntax_highlighting=0
+has_autosuggestions=0
+has_git_prompt=0
+first_prompt_lag_ms=75.472
+first_command_lag_ms=75.902
+command_lag_ms=1.193
+input_lag_ms=1.593
+exit_time_ms=78.113
+```
+
 ### Resources
 
 Reference for zsh configuration files and macOS defaults:
