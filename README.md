@@ -115,5 +115,6 @@ points.
 * [Another dotbot tutorial](https://www.elliotdenolf.com/blog/bootstrap-your-dotfiles-with-dotbot)
 * [](https://brandon.invergo.net/news/2012-05-26-using-gnu-stow-to-manage-your-dotfiles.html)
 * [](https://www.youtube.com/watch?v=CxAT1u8G7is)
-
 * [popular macos configs](https://github.com/mathiasbynens/dotfiles/blob/main/.macos)
+  * TODO: Automatically installing Terminal.app profile. Borrow [code from
+    here](https://github.com/mathiasbynens/dotfiles/blob/66ba9b3cc0ca1b29f04b8e39f84e5b034fdb24b6/.macos#L628-L673).

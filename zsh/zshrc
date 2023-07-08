@@ -35,6 +35,8 @@ alias urlencode='python -c "import sys, urllib as ul; print ul.quote_plus(sys.ar
 # Print each PATH entry on a separate line
 alias path='echo -e ${PATH//:/\\n}'
 
+alias ll='ls -lha'
+
 #
 # Homebrew completions support
 # See: https://docs.brew.sh/Shell-Completion#configuring-completions-in-zsh
@@ -62,13 +64,27 @@ antidote load ${HOME}/.dotfiles/zsh/zsh_plugins
 # Use `zstyle -L ':completion:*'` to see which completion styles are already set for the completion system.
 #
 
-# TODO: case insensitive completion for files and folder names (but still insert the right capitalization)
-
 # Add completing strategies. The default is `_complete _ignored`
 zstyle ':completion:*' completer _extensions _complete _match _prefix _ignored _correct _approximate
 
 # Allow you to select completions from a menu (highlight current completion, naviagte with arrow keys, etc)
 zstyle ':completion:*' menu select
+bindkey '^[[Z' reverse-menu-complete  # Shift+Tab to move backwards in the menu
+
+# Configure matching for completions
+#
+# A match pattern is used to filter the possible completions, resulting in the matches offered to the user.
+# The system works by trying each item in the matcher-list to generalize the match pattern and find matches. If there
+# are no matches, then the next item in the matcher-list is tried.
+#
+# 1. Case-sensitive prefix match,
+# 2. Case-insensitive prefix match,
+# 3. Case-sensitive word match (where words are separated by ., _, or -),
+# 4. Case-sensitive substring match.
+#
+# In all honesty, I don't understand the syntax, but I trust the following comment author:
+# https://www.reddit.com/r/zsh/comments/11dqx3e/comment/jadcbyz/
+zstyle ':completion:*' matcher-list 'm:{[:lower:][:upper:]}={[:upper:][:lower:]}' 'r:|=*' 'l:|=* r:|=*'
 
 # Autocomplete options for cd (and related functions) instead of directory stack. I don't really use directory stacks
 # so showing completion for options/flags is more useful.
@@ -76,15 +92,22 @@ zstyle ':completion:*' complete-options true
 # When completing with filenames, show the most recently modified files first
 zstyle ':completion:*' file-sort modification
 
-# Completions for commands like `kill`. This allows it to find way more running processes, including those from full
-# macOS apps. I'm not 100% certain what this command can do that the default is not doing. The default, according to
-# the ZSH docs, will also run `ps` to find the list of processes.
+# Completions for processes, for commands like `kill`. The default calls `ps`, which only finds processes that have
+# "controlling terminals", which does not include macOS apps. By adding the -u flag, we can find many more processes.
+# The -w -w flags displays the full command names (without regard for the window size).
 zstyle ':completion:*:*:*:*:processes' command "ps -u $USERNAME -o pid,user,comm -w -w"
 # Colorize the completions for `kill`
 zstyle ':completion:*:*:kill:*:processes' list-colors '=(#b) #([0-9]#) ([0-9a-z-]#)*=01;34=0=01'
 
+# Completion for host names in several commands
+# The following style might not be needed because /usr/share/zsh/5.9/functions/_hosts seems to provide a way to scan
+# ~/.ssh/known_hosts and .ssh/config for completion. Let's test it out once those files exist. I've verified the default
+# offers completions for hosts in /etc/hosts.
+# zstyle -e ':completion:*:(ssh|scp|sftp|rsh|rsync):hosts' hosts 'reply=(${=${${(f)"$(cat {/etc/ssh_,~/.ssh/known_}hosts(|2)(N) /dev/null)"}%%[# ]*}//,/ })'
+
 # Translation of the BSD-based LSCOLORS default to the GNU/Linux-based LS_COLORS
 # https://geoff.greer.fm/lscolors/
+# TODO: Move the LS_COLORS variable to .zshenv and make sure it is exported OR unset it at the end
 LS_COLORS='di=34:ln=35:so=32:pi=33:ex=31:bd=34;46:cd=34;43:su=30;41:sg=30;46:tw=30;42:ow=30;43'
 # Colors for files and directory
 zstyle ':completion:*:*:*:*:default' list-colors ${(s.:.)LS_COLORS}

@@ -112,8 +112,10 @@ Reference for zsh configuration files and macOS defaults:
 
 * [macos - ZSH: .zprofile, .zshrc, .zlogin - What goes where? - Ask Different](https://apple.stackexchange.com/questions/388622/zsh-zprofile-zshrc-zlogin-what-goes-where)
 * [zsh - What should/shouldn't go in .zshenv, .zshrc, .zlogin, .zprofile, .zlogout? - Unix & Linux Stack Exchange](https://unix.stackexchange.com/questions/71253/what-should-shouldnt-go-in-zshenv-zshrc-zlogin-zprofile-zlogout)
+* [Some inspiration](https://stuvel.eu/post/2020-08-05-zsh-config/)
 * [Properly setting $PATH for zsh on macOS (fighting with path_helper) · GitHub](https://gist.github.com/Linerre/f11ad4a6a934dcf01ee8415c9457e7b2#zsh-initializations)
 * [zsh: 5 Files](https://zsh.sourceforge.io/Doc/Release/Files.html#Files)
+
 
 Reference for some zsh configuration options and settings:
 
