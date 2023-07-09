@@ -9,10 +9,7 @@
 
 ## Requirements
 
-* Xcode
-* Install [Homebrew](https://brew.sh/)
-  * Install the following formulas:
-    * `git`: Currently at v2.41.0
+* Xcode (installs command line tools like `git`)
 * A working Python installation (macOS system Python is fine)
 
 ## Philosophy

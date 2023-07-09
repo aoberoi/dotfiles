@@ -6,6 +6,13 @@
     link:
       # Remove the old target if its a symlink
       relink: true
+    # The following logic should be inverted, but there's a bug in the plugin code.
+    # PR: https://github.com/wren/dotbot-brew/pull/1
+    brewfile:
+      stdout: false
+      stdin: false
+    brew:
+      stdout: false
 
 # ---
 # Initialization procedure. Each item below is a step that executes in order.
@@ -13,6 +20,11 @@
 
 # Remove dead symlinks (not recursive)
 - clean: ['~']
+
+# Install Homebrew if missing
+- install-brew: true
+- brew:
+  - git
 
 # Create symlinks
 - link:
@@ -49,6 +61,8 @@
     stdout: true
     stderr: true
 
-# TODO: run brewfile install
+- brewfile:
+  - brew/Brewfile
+
 # TODO: install Xcode automatically?
 # TODO: make the git credential manager thing get set up before i need to push any files
