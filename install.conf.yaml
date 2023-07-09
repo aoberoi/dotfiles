@@ -65,4 +65,3 @@
   - brew/Brewfile
 
 # TODO: install Xcode automatically?
-# TODO: make the git credential manager thing get set up before i need to push any files
