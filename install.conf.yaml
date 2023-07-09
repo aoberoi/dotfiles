@@ -36,11 +36,6 @@
 
     # git config
     ~/.gitconfig: git/gitconfig
-    # TODO: fzf? main use case seems to be for better reverse search in history
-    # TODO: nvm, automatic `nvm use` after changing directories (dotfiles). actually fnm looks like a good alternative.
-    # TODO: rust + rustup + cargo
-    # TODO: golang
-    # TODO: maybe rbenv?
 
     # Create a "permalink" to the working copy of this repo, so other scripts can easily find the path
     ~/.dotfiles: ""
@@ -63,5 +58,3 @@
 
 - brewfile:
   - brew/Brewfile
-
-# TODO: install Xcode automatically?

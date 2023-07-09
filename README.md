@@ -102,17 +102,6 @@ points.
   * In this use case, there is no package manager. In this ecosystem, there are shell plugin managers that sort of take
     this role, but I'd like installation solution not to depend on a specific shell's plugin ecosystem.
 
-## Questions
-
-- [ ] How do I manage secrets? I'm thinking about data that belongs in the `~/.ssh/` directory. Can 1Password help with
-  this?
-
-## Homebrew packages
-
-* `caddy` - file server
-* `python` - https://docs.brew.sh/Homebrew-and-Python
-* 1password CLI
-
 ## References
 
 * [Dotbot tutorial by framework author](https://anishathalye.com/managing-your-dotfiles/)
@@ -120,6 +109,4 @@ points.
 * [](https://brandon.invergo.net/news/2012-05-26-using-gnu-stow-to-manage-your-dotfiles.html)
 * [](https://www.youtube.com/watch?v=CxAT1u8G7is)
 * [popular macos configs](https://github.com/mathiasbynens/dotfiles/blob/main/.macos)
-  * TODO: Automatically installing Terminal.app profile. Borrow [code from
-    here](https://github.com/mathiasbynens/dotfiles/blob/66ba9b3cc0ca1b29f04b8e39f84e5b034fdb24b6/.macos#L628-L673).
   * [Strap project](https://github.com/MikeMcQuaid/strap)

@@ -1,3 +1,5 @@
+# Reference: https://github.com/Homebrew/homebrew-bundle
+
 # Prerequisite, but good to just make sure its there
 brew "git"
 
