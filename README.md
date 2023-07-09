@@ -9,6 +9,7 @@
 
 ## Requirements
 
+* Xcode
 * Install [Homebrew](https://brew.sh/)
   * Install the following formulas:
     * `git`: Currently at v2.41.0
@@ -109,6 +110,12 @@ points.
 - [ ] How do I manage secrets? I'm thinking about data that belongs in the `~/.ssh/` directory. Can 1Password help with
   this?
 
+## Homebrew packages
+
+* `caddy` - file server
+* `python` - https://docs.brew.sh/Homebrew-and-Python
+* 1password CLI
+
 ## References
 
 * [Dotbot tutorial by framework author](https://anishathalye.com/managing-your-dotfiles/)
@@ -118,3 +125,4 @@ points.
 * [popular macos configs](https://github.com/mathiasbynens/dotfiles/blob/main/.macos)
   * TODO: Automatically installing Terminal.app profile. Borrow [code from
     here](https://github.com/mathiasbynens/dotfiles/blob/66ba9b3cc0ca1b29f04b8e39f84e5b034fdb24b6/.macos#L628-L673).
+  * [Strap project](https://github.com/MikeMcQuaid/strap)

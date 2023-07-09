@@ -1,0 +1,11 @@
+# Prerequisite, but good to just make sure its there
+brew "git"
+
+tap "microsoft/git"
+# Prefered credential manager on macOS for GitHub
+cask "git-credential-manager-core"
+
+# Open and/or free fonts
+tap "homebrew/cask-fonts"
+cask "font-fira-code"
+

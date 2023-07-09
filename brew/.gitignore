@@ -1,0 +1,3 @@
+# Homebrew uses rolling releases, don't commit lockfile
+# https://github.com/Homebrew/homebrew-bundle#versions-and-lockfiles
+Brewfile.lock.json
