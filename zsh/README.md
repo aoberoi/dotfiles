@@ -114,7 +114,11 @@ Reference for zsh configuration files and macOS defaults:
 * [zsh - What should/shouldn't go in .zshenv, .zshrc, .zlogin, .zprofile, .zlogout? - Unix & Linux Stack Exchange](https://unix.stackexchange.com/questions/71253/what-should-shouldnt-go-in-zshenv-zshrc-zlogin-zprofile-zlogout)
 * [Some inspiration](https://stuvel.eu/post/2020-08-05-zsh-config/)
 * [Properly setting $PATH for zsh on macOS (fighting with path_helper) · GitHub](https://gist.github.com/Linerre/f11ad4a6a934dcf01ee8415c9457e7b2#zsh-initializations)
+* `/usr/share/zsh/5.9/functions` - location of most functions on macOS (completions, builtins, etc).
 * [zsh: 5 Files](https://zsh.sourceforge.io/Doc/Release/Files.html#Files)
+* zsh completion system
+  * [HOWTO guide](https://github.com/zsh-users/zsh-completions/blob/master/zsh-completions-howto.org#)
+  * [Docs](https://zsh.sourceforge.io/Doc/Release/Completion-System.html#Completion-System)
 
 
 Reference for some zsh configuration options and settings:
