@@ -105,6 +105,13 @@ exit_time_ms=80.483
 </tr>
 </table>
 
+### Completion system
+
+When new completion functions are added, its often necessary to clear the cache before those completions will work:
+
+```
+$ rm ~/.cache/zsh/compdump
+```
 
 ### Resources
 
