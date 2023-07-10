@@ -27,3 +27,6 @@ brew "python@3.11"
 # 1Password CLI
 tap "1Password/tap"
 cask "1password-cli"
+
+# fnm - Fast Node Manager (replacement for nvm)
+brew "fnm"

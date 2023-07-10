@@ -81,6 +81,11 @@ fi
 eval "$(op completion zsh)"; # compdef _op op
 
 #
+# fnm - Fast Node Manager
+#
+eval "$(fnm env --use-on-cd)"
+
+#
 # Antidote - ZSH plugin manager
 #
 source ${HOME}/.dotfiles/zsh/antidote/antidote.zsh
