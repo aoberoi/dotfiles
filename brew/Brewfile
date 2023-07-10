@@ -30,3 +30,6 @@ cask "1password-cli"
 
 # fnm - Fast Node Manager (replacement for nvm)
 brew "fnm"
+
+# fzf - Fuzzy Finder
+brew "fzf"

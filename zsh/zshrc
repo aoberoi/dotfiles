@@ -86,6 +86,12 @@ eval "$(op completion zsh)"; # compdef _op op
 eval "$(fnm env --use-on-cd)"
 
 #
+# fzf - keybindings and completions
+# Generated from $(brew --prefix)/opt/fzf/install, and modified
+#
+[ -f ~/dotfiles/zsh/fzf.zsh ] && source ~/dotfiles/zsh/fzf.zsh
+
+#
 # Antidote - ZSH plugin manager
 #
 source ${HOME}/.dotfiles/zsh/antidote/antidote.zsh
