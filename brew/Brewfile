@@ -24,6 +24,9 @@ brew "caddy"
 # https://docs.brew.sh/Homebrew-and-Python
 brew "python@3.11"
 
+# fzf - Fuzzy Finder
+brew "fzf"
+
 # 1Password CLI
 tap "1Password/tap"
 cask "1password-cli"
@@ -31,5 +34,12 @@ cask "1password-cli"
 # fnm - Fast Node Manager (replacement for nvm)
 brew "fnm"
 
-# fzf - Fuzzy Finder
-brew "fzf"
+# Deno
+brew "deno"
+
+# Rust
+brew "rustup"
+
+# Go (golang)
+# We can use the go@{version} notation if we care about a fixed version.
+brew "go"

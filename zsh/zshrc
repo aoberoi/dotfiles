@@ -76,14 +76,16 @@ then
 fi
 
 #
-# 1Password CLI completions
-#
-eval "$(op completion zsh)"; # compdef _op op
-
-#
 # fnm - Fast Node Manager
 #
 eval "$(fnm env --use-on-cd)"
+
+#
+# Rust
+#
+if [ -f ~/.cargo/env ]; then
+    source ~/.cargo/env
+fi
 
 #
 # fzf - keybindings and completions
@@ -107,6 +109,12 @@ antidote load ${HOME}/.dotfiles/zsh/zsh_plugins
 #
 # The order of tags: ':completion:function:completer:command:argument:tag'
 #
+
+#
+# 1Password CLI completions
+# Unlike the homebrew completions, this eval must take place after compinit is called (in the Antidote zsh plugins)
+#
+eval "$(op completion zsh)"; compdef _op op
 
 # Add completing strategies. The default is `_complete _ignored`
 zstyle ':completion:*' completer _extensions _complete _match _prefix _ignored _correct _approximate

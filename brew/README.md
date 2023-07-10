@@ -4,6 +4,8 @@ Set up essential packages from the Homebrew package manager.
 
 NOTE: The 1Password CLI installation requires inputting the admin password.
 
+NOTE: Rust requires running `rustup-init` after the installation is complete.
+
 ## What is included?
 
 The idea is to record the packages I believe any system I use should have on it, which I call essentials.
