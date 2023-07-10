@@ -11,3 +11,7 @@ cask "git-credential-manager-core"
 tap "homebrew/cask-fonts"
 cask "font-fira-code"
 
+# Replacement for cat and man, supporting colorized syntax highlighting
+brew "bat"
+tap "eth-p/software"
+brew "bat-extras-batman"

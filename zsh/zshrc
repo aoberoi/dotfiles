@@ -31,6 +31,7 @@ alias duf='du -sh *' # list current directory with size on disk
 alias biggest='du -s ./* | sort -nr | awk '\''{print $2}'\'' | xargs du -sh' # list current directory with size on disk (descending)
 alias dud='du -d 1 -h' # list directories in current directory with size on disk
 alias dux='du -x -d 1 | sort -n' # list directories in current directory with size on disk (ascending)
+alias ccat='bat --plain --paging=never' # syntax highlighted cat, using bat
 
 # Working with archives
 alias tarls="tar -tvf"
@@ -55,6 +56,9 @@ alias showdesktop="defaults write com.apple.finder CreateDesktop -bool true && k
 # URL-encode strings
 alias urlencode='python3 -c "import sys, urllib.parse as ul; print (ul.quote_plus(sys.argv[1]))"'
 alias urldecode='python3 -c "import sys, urllib.parse as ul; print(ul.unquote_plus(sys.argv[1]))"'
+
+# Pretty manpages
+alias man="batman"
 
 #
 # Homebrew completions support
