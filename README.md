@@ -37,6 +37,8 @@ A concrete example
      name, install, and then delete the temporary files once the install is successful. It's also a good idea to take
      a look at those temporary files to verify there isn't anything in there you want to keep and to sync them into the
      installed version.
+   * The 1Password CLI installation will prompt for the admin password during the initial install. After this completes,
+     follow the [instructions to sign in](https://developer.1password.com/docs/cli/get-started#sign-in).
 
 #### Making local changes
 

@@ -58,7 +58,10 @@ alias urlencode='python3 -c "import sys, urllib.parse as ul; print (ul.quote_plu
 alias urldecode='python3 -c "import sys, urllib.parse as ul; print(ul.unquote_plus(sys.argv[1]))"'
 
 # Pretty manpages
-alias man="batman"
+alias man='batman'
+
+# Local static webserver
+alias serve='caddy file-server'
 
 #
 # Homebrew completions support
@@ -71,6 +74,11 @@ if type brew &>/dev/null
 then
   FPATH="$(brew --prefix)/share/zsh/site-functions:${FPATH}"
 fi
+
+#
+# 1Password CLI completions
+#
+eval "$(op completion zsh)"; # compdef _op op
 
 #
 # Antidote - ZSH plugin manager

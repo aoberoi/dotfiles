@@ -15,3 +15,15 @@ cask "font-fira-code"
 brew "bat"
 tap "eth-p/software"
 brew "bat-extras-batman"
+
+# Modern web server, but mostly just used for static file serving
+# https://caddyserver.com/docs/command-line
+brew "caddy"
+
+# Modern Python - symlinks for python3 and pip3 will invoke this version
+# https://docs.brew.sh/Homebrew-and-Python
+brew "python@3.11"
+
+# 1Password CLI
+tap "1Password/tap"
+cask "1password-cli"
