@@ -33,3 +33,6 @@ brew "fnm"
 
 # Deno
 brew "deno"
+
+# Rust
+brew "rustup"

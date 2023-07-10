@@ -39,6 +39,7 @@ A concrete example
      installed version.
    * The 1Password CLI installation will prompt for the admin password during the initial install. After this completes,
      follow the [instructions to sign in](https://developer.1password.com/docs/cli/get-started#sign-in).
+   * Rust requires running `rustup-init` after the installation is complete.
 
 #### Making local changes
 

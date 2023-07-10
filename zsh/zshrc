@@ -86,6 +86,13 @@ eval "$(op completion zsh)"; # compdef _op op
 eval "$(fnm env --use-on-cd)"
 
 #
+# Rust
+#
+if [ -f ~/.cargo/env ]; then
+    source ~/.cargo/env
+fi
+
+#
 # Antidote - ZSH plugin manager
 #
 source ${HOME}/.dotfiles/zsh/antidote/antidote.zsh
