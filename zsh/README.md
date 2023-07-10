@@ -116,7 +116,11 @@ Reference for zsh configuration files and macOS defaults:
 * [Properly setting $PATH for zsh on macOS (fighting with path_helper) · GitHub](https://gist.github.com/Linerre/f11ad4a6a934dcf01ee8415c9457e7b2#zsh-initializations)
 * `/usr/share/zsh/5.9/functions` - location of most functions on macOS (completions, builtins, etc).
 * [zsh: 5 Files](https://zsh.sourceforge.io/Doc/Release/Files.html#Files)
+* [ZSH - LOVERS](https://grml.org/zsh/zsh-lovers.html)
+* [Quick zsh reference](https://github.com/mattmc3/zdotdir/tree/main/.docs)
+* [Zephyr - a framework with some lightweight plugins](https://github.com/mattmc3/zephyr)
 * zsh completion system
+  * [A Guide to the Zsh Completion with Examples](https://thevaluable.dev/zsh-completion-guide-examples/)
   * [HOWTO guide](https://github.com/zsh-users/zsh-completions/blob/master/zsh-completions-howto.org#)
   * [Docs](https://zsh.sourceforge.io/Doc/Release/Completion-System.html#Completion-System)
 
