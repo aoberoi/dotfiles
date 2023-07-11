@@ -11,11 +11,8 @@
 #setopt interactive_comments
 
 #
-# Aliases
+# Files and directories
 #
-
-# Print each PATH entry on a separate line
-alias path='echo -e ${PATH//:/\\n}'
 
 # Moving around directories a bit easier
 alias ..="cd .."
@@ -25,17 +22,33 @@ alias .....="cd ../../../.."
 
 # Listing files
 alias ll='ls -lha'
-alias fd='find . -type d -name' # find by directory name
-alias ff='find . -type f -name' # find by filename
 alias duf='du -sh *' # list current directory with size on disk
 alias biggest='du -s ./* | sort -nr | awk '\''{print $2}'\'' | xargs du -sh' # list current directory with size on disk (descending)
 alias dud='du -d 1 -h' # list directories in current directory with size on disk
 alias dux='du -x -d 1 | sort -n' # list directories in current directory with size on disk (ascending)
+
+# Find by exact filename
+# NOTE: for fuzzy finding, use Ctrl+T for an interactive search that puts the filename into the command in progress
+alias ff='find . -type f -name'
+
+# Find by exact directory name
+# NOTE: for fuzzy finding and immediately cd-ing into the directory, use Esc+C for an interactive search
+alias fd='find . -type d -name'
+
+# Viewing files
 alias ccat='bat --plain --paging=never' # syntax highlighted cat, using bat
+alias man='batman' # pretty manpages
+
+#
+# Utility Aliases
+#
 
 # Working with archives
 alias tarls="tar -tvf"
 alias untar="tar -xf"
+
+# Print each PATH entry on a separate line
+alias path='echo -e ${PATH//:/\\n}'
 
 # Date and time helpers
 alias timestamp="date '+%Y-%m-%d %H:%M:%S'"
@@ -56,9 +69,6 @@ alias showdesktop="defaults write com.apple.finder CreateDesktop -bool true && k
 # URL-encode strings
 alias urlencode='python3 -c "import sys, urllib.parse as ul; print (ul.quote_plus(sys.argv[1]))"'
 alias urldecode='python3 -c "import sys, urllib.parse as ul; print(ul.unquote_plus(sys.argv[1]))"'
-
-# Pretty manpages
-alias man='batman'
 
 # Local static webserver
 alias serve='caddy file-server'
@@ -89,9 +99,15 @@ fi
 
 #
 # fzf - keybindings and completions
-# Generated from $(brew --prefix)/opt/fzf/install, and modified
 #
-[ -f ~/dotfiles/zsh/fzf.zsh ] && source ~/dotfiles/zsh/fzf.zsh
+export FZF_DEFAULT_OPTS="--border"
+# The following causes problems for directories and binary files. The best way to resolve the problems is to use ripgrep
+# or fd to replace the builtin find command, but that adds more bloat. I'm choosing not to have previews in Ctrl+T.
+# export FZF_CTRL_T_OPTS="--preview 'bat --color=always --line-range :50 {}'"
+export FZF_ALT_C_OPTS="--preview 'tree -C {}'"
+export FZF_COMPLETION_DIR_COMMANDS="cd pushd rmdir tree ls ll"
+# Generated from `$(brew --prefix)/opt/fzf/install`, and modified
+source ~/.dotfiles/zsh/fzf.zsh
 
 #
 # Antidote - ZSH plugin manager
