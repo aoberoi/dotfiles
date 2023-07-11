@@ -24,6 +24,10 @@ brew "caddy"
 # https://docs.brew.sh/Homebrew-and-Python
 brew "python@3.11"
 
+# fzf - Fuzzy Finder
+brew "fzf"
+brew "tree" # used to preview directories, and a generally useful utility
+
 # 1Password CLI
 tap "1Password/tap"
 cask "1password-cli"
