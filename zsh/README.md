@@ -130,6 +130,7 @@ Reference for zsh configuration files and macOS defaults:
   * [A Guide to the Zsh Completion with Examples](https://thevaluable.dev/zsh-completion-guide-examples/)
   * [HOWTO guide](https://github.com/zsh-users/zsh-completions/blob/master/zsh-completions-howto.org#)
   * [Docs](https://zsh.sourceforge.io/Doc/Release/Completion-System.html#Completion-System)
+* [fzf intro](https://www.youtube.com/watch?v=tB-AgxzBmH8)
 
 
 Reference for some zsh configuration options and settings:
