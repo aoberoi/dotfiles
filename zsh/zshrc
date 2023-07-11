@@ -132,6 +132,9 @@ antidote load ${HOME}/.dotfiles/zsh/zsh_plugins
 #
 eval "$(op completion zsh)"; compdef _op op
 
+# Completion support for alias man="batman"
+compdef _man batman
+
 # Add completing strategies. The default is `_complete _ignored`
 zstyle ':completion:*' completer _extensions _complete _match _prefix _ignored _correct _approximate
 
