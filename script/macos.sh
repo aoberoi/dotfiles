@@ -27,4 +27,8 @@ defaults write NSGlobalDomain NSAutomaticPeriodSubstitutionEnabled -bool false
 defaults write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true
 defaults write NSGlobalDomain NSNavPanelExpandedStateForSaveMode2 -bool true
 
+# Show App Switcher (Cmd+Tab) on all displays. The default only shows the it on the display with the Dock, but when I
+# use an external display I often leave the Dock on the laptop display.
+defaults write com.apple.dock appswitcher-all-displays -bool true
+
 echo "Log out and log back in for macOS settings to take effect."
