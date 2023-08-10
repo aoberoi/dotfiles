@@ -44,3 +44,6 @@ brew "rustup"
 # Go (golang)
 # We can use the go@{version} notation if we care about a fixed version.
 brew "go"
+
+# Exiftool - used by digiKam and RawTherapee (photography workflow)
+brew "exiftool"
