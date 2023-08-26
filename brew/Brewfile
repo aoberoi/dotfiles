@@ -47,3 +47,6 @@ brew "go"
 
 # Exiftool - used by digiKam and RawTherapee (photography workflow)
 brew "exiftool"
+
+# Youtube-DLP - fork of Youtube-DL with more features and built on modern Python
+brew "yt-dlp"
