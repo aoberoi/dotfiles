@@ -49,4 +49,5 @@ brew "go"
 brew "exiftool"
 
 # Youtube-DLP - fork of Youtube-DL with more features and built on modern Python
+brew "ffmpeg" # dependency for merging fragments and tracks
 brew "yt-dlp"
