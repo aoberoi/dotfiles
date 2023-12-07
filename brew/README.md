@@ -74,3 +74,55 @@ like a system reset.
 $ brew bundle --force cleanup
 ```
 
+## Python
+
+Homebrew separates 3.y (where `y`` is considered major) releases from one another. Therefore, when you have multiple
+major releases installed, there will be symlinks for each version (e.g. `python3.11`, `python3.12`, etc). There will
+also be a symlink for `python3`, which will point to one of these versions. The best way to find out which version
+that is, is to simply run `python3 --version` (or other binary name). **NOTE:** I'm not quite sure if and when the
+`python3` symlink is updated. It may just remain pointing to the first version of Python 3.y that you installed on the
+system, to avoid breakage.
+
+Learn more: https://docs.brew.sh/Homebrew-and-Python
+
+### pip
+
+In addition, several symlinks for pip will be available (e.g. `pip3.11`, `pip3.12`, etc). There will also be a `pip3`
+symlink on the system. The best way to find out which python version a certain pip is using, is to run `pip3 --version`
+(or other binary name) which has an output that ends in a specific python version (e.g. `(python 3.11)`). **NOTE:**
+To avoid confusion and breakage, its important to maintain that the `python3` and `pip3` symlinks use the same version
+of Python.
+
+### virutalenv
+
+It's important to limit the use of global binaries, given how managing the specific version of Python they are bound to
+can get tricky (as is unavoidable for pip). In general, all Python packages should be installed in a virtualenv, and
+that virtualenv should be activated before use (and deactivated after use).
+
+Ironically, virtualenv itself is commonly used as a global binary. But that isn't necessary. Here are the commands I
+use to use virtualenv without depending on the global binary:
+
+#### Create a new virtualenv:
+
+Use the specific python version you intend to "bind" the virtualenv onto.
+
+```
+$ python3.11 -m venv environment_name
+```
+
+#### Activate a virtualenv:
+
+Now you don't have to remember which Python you were supposed to use for a specific project.
+
+```
+$ source environment_name/bin/activate
+```
+
+Once you're in the virtualenv, you should use `python` and `pip` (without any version numbers in the binary name) to use
+the "bound" python.
+
+#### Deactivate a virtualenv:
+
+```
+$ deactivate
+```
