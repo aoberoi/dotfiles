@@ -76,7 +76,7 @@ $ brew bundle --force cleanup
 
 ## Python
 
-Homebrew separates 3.y (where `y`` is considered major) releases from one another. Therefore, when you have multiple
+Homebrew separates 3.y (where `y` is considered major) releases from one another. Therefore, when you have multiple
 major releases installed, there will be symlinks for each version (e.g. `python3.11`, `python3.12`, etc). There will
 also be a symlink for `python3`, which will point to one of these versions. The best way to find out which version
 that is, is to simply run `python3 --version` (or other binary name). **NOTE:** I'm not quite sure if and when the
