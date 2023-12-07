@@ -83,6 +83,21 @@ that is, is to simply run `python3 --version` (or other binary name). **NOTE:** 
 `python3` symlink is updated. It may just remain pointing to the first version of Python 3.y that you installed on the
 system, to avoid breakage.
 
+<details>
+    <summary>Unverified method to update <code>python3</code> symlink</summary>
+
+```
+# Unlink the older version
+$ brew unlink python3
+# Link the new version
+$ brew link python@3.12
+# Check your result
+$ python3 --version
+```
+
+</details>
+
+
 Learn more: https://docs.brew.sh/Homebrew-and-Python
 
 ### pip
