@@ -7,9 +7,9 @@
 	lol = log --decorate --oneline --graph
 [init]
 	defaultBranch = main
+[credential "https://invent.kde.org"]
+	provider = generic
 [credential]
 	helper = /usr/local/share/gcm-core/git-credential-manager
 [credential "https://dev.azure.com"]
 	useHttpPath = true
-[credential "https://invent.kde.org"]
-	provider = generic

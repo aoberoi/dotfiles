@@ -3,13 +3,13 @@
 # Prerequisite, but good to just make sure its there
 brew "git"
 
-tap "microsoft/git"
 # Prefered credential manager on macOS for GitHub
-cask "git-credential-manager-core"
+cask "git-credential-manager"
 
 # Open and/or free fonts
 tap "homebrew/cask-fonts"
 cask "font-fira-code"
+cask "font-monaspace" # https://monaspace.githubnext.com/
 
 # Replacement for cat and man, supporting colorized syntax highlighting
 brew "bat"
@@ -22,7 +22,7 @@ brew "caddy"
 
 # Modern Python - symlinks for python3 and pip3 will invoke this version
 # https://docs.brew.sh/Homebrew-and-Python
-brew "python@3.11"
+brew "python@3.12"
 
 # fzf - Fuzzy Finder
 brew "fzf"
@@ -48,6 +48,7 @@ brew "go"
 # Exiftool - used by digiKam and RawTherapee (photography workflow)
 brew "exiftool"
 
-# Youtube-DLP - fork of Youtube-DL with more features and built on modern Python
+# Media tools
 brew "ffmpeg" # dependency for merging fragments and tracks
-brew "yt-dlp"
+brew "bento4" # package that contains mp4decrypt
+brew "yt-dlp" # fork of Youtube-DL with more features and built on modern Python
