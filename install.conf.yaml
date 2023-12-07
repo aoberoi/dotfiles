@@ -58,3 +58,11 @@
 
 - brewfile:
   - brew/Brewfile
+
+- shell:
+  # Ideally, this a formula would be published for this on Homebrew
+  # https://github.com/nilaoda/N_m3u8DL-RE/issues/324
+  -
+    command: echo 0
+    description: Optionally install N_m3u8DL-RE (https://github.com/nilaoda/N_m3u8DL-RE) for media fetching, decrypting, and muxing.
+    quiet: true
