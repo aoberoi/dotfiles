@@ -113,6 +113,10 @@ When new completion functions are added, its often necessary to clear the cache 
 $ rm ~/.cache/zsh/compdump
 ```
 
+In addition, a custom symlink `~/.zfunc` is created and prepended to the zsh fpath. That symlink points to `zfunc` in
+this directory. It contains scripts for completions (named with an underscore and then the command name). Any custom
+completions or completions that are not placed in the Homebrew completions directory can be stored here.
+
 ### Resources
 
 Reference for zsh configuration files and macOS defaults:
@@ -130,6 +134,7 @@ Reference for zsh configuration files and macOS defaults:
   * [A Guide to the Zsh Completion with Examples](https://thevaluable.dev/zsh-completion-guide-examples/)
   * [HOWTO guide](https://github.com/zsh-users/zsh-completions/blob/master/zsh-completions-howto.org#)
   * [Docs](https://zsh.sourceforge.io/Doc/Release/Completion-System.html#Completion-System)
+* [zsh fpath autoload](https://unix.stackexchange.com/a/33898)
 * [fzf intro](https://www.youtube.com/watch?v=tB-AgxzBmH8)
 
 

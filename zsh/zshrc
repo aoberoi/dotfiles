@@ -99,8 +99,15 @@ eval "$(fnm env --use-on-cd)"
 # Rust
 #
 if [ -f ~/.cargo/env ]; then
-    source ~/.cargo/env
+  . "$HOME/.cargo/env"
 fi
+
+
+#
+# Add custom user functions by prepending to fpath
+#
+# This contains rustup completions, which must be added to the fpath before compinit is called
+fpath+=~/.zfunc
 
 #
 # fzf - keybindings and completions

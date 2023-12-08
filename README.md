@@ -39,7 +39,12 @@ A concrete example
      installed version.
    * The 1Password CLI installation will prompt for the admin password during the initial install. After this completes,
      follow the [instructions to sign in](https://developer.1password.com/docs/cli/get-started#sign-in).
-   * Rust requires running `rustup-init` after the installation is complete.
+   * Rust requires running `rustup-init --no-modify-path` after the installation is complete. The rustup completions
+     script for zsh, which was initially generated from `rustup completions zsh`, are checked into this repo. Therefore,
+     if rustup's CLI significantly changes, I may need to update the contents of `zsh/zfunc/_rustup` with the latest
+     output of that command.
+   * The first time you git push a change that requires authentication, the git-credential-store will ask for the system
+     password. You should type it in and choose 'Always Allow' so it doesn't prompt every time.
 
 #### Making local changes
 

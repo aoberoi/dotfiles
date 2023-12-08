@@ -33,6 +33,7 @@
     # zsh config
     ~/.zprofile: zsh/zprofile
     ~/.zshrc: zsh/zshrc
+    ~/.zfunc: zsh/zfunc
 
     # git config
     ~/.gitconfig: git/gitconfig
