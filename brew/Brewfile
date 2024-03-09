@@ -17,6 +17,9 @@ brew "bat"
 tap "eth-p/software"
 brew "bat-extras-batman"
 
+# Disk usage visualization utility
+brew "ncdu"
+
 # Modern web server, but mostly just used for static file serving
 # https://caddyserver.com/docs/command-line
 brew "caddy"
