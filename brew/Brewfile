@@ -8,14 +8,13 @@ brew "git-filter-repo" # extension used for things like removing large files fro
 cask "git-credential-manager"
 
 # Open and/or free fonts
-tap "homebrew/cask-fonts"
 cask "font-fira-code"
 cask "font-monaspace" # https://monaspace.githubnext.com/
 
 # Replacement for cat and man, supporting colorized syntax highlighting
 brew "bat"
 tap "eth-p/software"
-brew "bat-extras-batman"
+  brew "bat-extras-batman"
 
 # Disk usage visualization utility
 brew "ncdu"
@@ -34,7 +33,7 @@ brew "tree" # used to preview directories, and a generally useful utility
 
 # 1Password CLI
 tap "1Password/tap"
-cask "1password-cli"
+  cask "1password-cli"
 
 # fnm - Fast Node Manager (replacement for nvm)
 brew "fnm"

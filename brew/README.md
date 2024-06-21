@@ -74,7 +74,7 @@ like a system reset.
 $ brew bundle --force cleanup
 ```
 
-#### Find dependants of a package
+#### Find dependents of a package
 
 When reviewing outdated packages, I might find a bunch that I didn't directly install, but instead were installed as
 dependencies of another package. I can use the following command to find all the other packages that might depend on
@@ -85,7 +85,7 @@ should take care of updating it, when that is updated).
 $ brew uses package_name --installed
 ```
 
-I can also explicitly find all the packages that have no dependants using the following command
+I can also explicitly find all the packages that have no dependents using the following command
 
 ```
 $ brew leaves
