@@ -49,10 +49,14 @@ A concrete example
 #### Making local changes
 
 Make changes inside the working copy of the repo.
-  * In files that already exist, the changes will be reflected immediately, since the symlinks are already in place. You
-may need to start a new shell or rerun the program that uses the changes.
-  * For new files, you'll need to take a look at `install.conf.yaml` to make sure they get linked properly. Then you can
-run the `./install` script to perform the link creation. Now you can start a new shell or rerun the program that uses
+  * In files that already exist, the changes will be reflected immediately, since the symlinks are
+already in place. You may need to start a new shell or rerun the program that uses the changes.
+  * For new files, create them in this repo. Then take a look at `install.conf.yaml` to make sure
+the file in this repo will be linked to the system location properly.
+    * WAIT: Before you run the install script in the next step, consider commenting out the
+    expensive parts of performing an install, such as `brewfile`, updating submodules, or setting
+    macOS defaults (which requests logging out and logging in).
+    * Run the `./install` script to perform the link creation. Now you can start a new shell or rerun the program that uses
 the changes.
 
 Once the changes are working the way you intend, commit the changes and push to the remote repo.

@@ -3,6 +3,7 @@
 	email = aoberoi@gmail.com
 [core]
 	excludesfile = ~/.dotfiles/git/gitignore_global
+	editor = vim
 [alias]
 	lol = log --decorate --oneline --graph
 [init]
@@ -10,6 +11,7 @@
 [credential "https://invent.kde.org"]
 	provider = generic
 [credential]
+	helper =
 	helper = /usr/local/share/gcm-core/git-credential-manager
 [credential "https://dev.azure.com"]
 	useHttpPath = true
