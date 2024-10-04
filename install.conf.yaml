@@ -36,9 +36,9 @@
     ~/.zfunc: zsh/zfunc
 
     # vim config
-    ~/.vim/.vimrc:
+    ~/.vim/vimrc:
       create: true
-      path: vim/.vimrc
+      path: vim/vimrc
 
     # git config (depends on vim config)
     ~/.gitconfig: git/gitconfig
