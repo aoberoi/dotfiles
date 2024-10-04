@@ -13,6 +13,9 @@
 #
 # Files and directories
 #
+# For fuzzy finding within the current directory, use Ctrl+T for an interactive search that puts the file or
+# directory name into the command in progress. Or use use Opt+C to find a directory name and navigate into the selected
+# directory in one step (this depends on Terminal mapping Meta to Option key).
 
 # Moving around directories a bit easier
 alias ..="cd .."
@@ -28,11 +31,8 @@ alias dud='du -d 1 -h' # list directories in current directory with size on disk
 alias dux='du -x -d 1 | sort -n' # list directories in current directory with size on disk (ascending)
 
 # Find by exact filename
-# NOTE: for fuzzy finding, use Ctrl+T for an interactive search that puts the filename into the command in progress
 alias ff='find . -type f -name'
-
 # Find by exact directory name
-# NOTE: for fuzzy finding and immediately cd-ing into the directory, use Esc+C for an interactive search
 alias fd='find . -type d -name'
 
 # Viewing files
@@ -115,6 +115,9 @@ fpath+=~/.zfunc
 export FZF_DEFAULT_OPTS="--border"
 # The following causes problems for directories and binary files. The best way to resolve the problems is to use ripgrep
 # or fd to replace the builtin find command, but that adds more bloat. I'm choosing not to have previews in Ctrl+T.
+# Another way to fix this would be to have a chain of commands in --preview, so that if one fails, you fallback to tree,
+# or some other preview tool. Not sure if its worth investing time into this idea right now. This is also why some
+# people force Ctrl+T to filter down to only files (by modifying the default command or ctrl t command envvar).
 # export FZF_CTRL_T_OPTS="--preview 'bat --color=always --line-range :50 {}'"
 export FZF_ALT_C_OPTS="--preview 'tree -C {}'"
 export FZF_COMPLETION_DIR_COMMANDS="cd pushd rmdir tree ls ll"
