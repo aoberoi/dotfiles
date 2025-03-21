@@ -2,9 +2,24 @@
 
 Set up essential packages from the Homebrew package manager.
 
-NOTE: The 1Password CLI installation requires inputting the admin password.
+## Initial setup
 
-NOTE: Rust requires running `rustup-init` after the installation is complete.
+* The first time you git push a change that requires authentication, the git-credential-store will
+  ask for the system password. You should type it in and choose 'Always Allow' so it doesn't prompt
+  every time.
+
+* Rust requires running `rustup-init --no-modify-path` after the installation is complete. The
+  rustup completions script for zsh, which was initially generated from `rustup completions zsh`,
+  are checked into this repo. Therefore, if rustup's CLI significantly changes, I may need to update
+  the contents of `zsh/zfunc/_rustup` with the latest output of that command.
+
+* The 1Password CLI installation requires inputting the admin password. After this completes, follow
+  the [instructions to sign in](https://developer.1password.com/docs/cli/get-started#sign-in).
+
+* MakeMKV requires adding a license key after the installation is complete. The current beta key
+  can be found in this [forum post](https://forum.makemkv.com/forum/viewtopic.php?t=1053). On macOS,
+  you make need to right-click the app in /Applications and select "Open", then select "Open" in the
+  warning since it is not signed by Apple.
 
 ## What is included?
 

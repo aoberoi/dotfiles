@@ -59,7 +59,4 @@ brew "ffmpeg" # dependency for merging fragments and tracks
 brew "bento4" # package that contains mp4decrypt
 brew "yt-dlp" # fork of Youtube-DL with more features and built on modern Python
 # MakeMVK is used to convert ripped DVD images and discs into MKV files without transcoding the media
-# It is free while in beta. The current key is found here: https://forum.makemkv.com/forum/viewtopic.php?t=1053
-# On macOS, you make need to right-click the app in /Applications and select Open, then select Open in the warning
-# since it is not signed by Apple.
 cask "makemkv"

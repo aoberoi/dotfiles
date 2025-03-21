@@ -37,14 +37,8 @@ A concrete example
      name, install, and then delete the temporary files once the install is successful. It's also a good idea to take
      a look at those temporary files to verify there isn't anything in there you want to keep and to sync them into the
      installed version.
-   * The 1Password CLI installation will prompt for the admin password during the initial install. After this completes,
-     follow the [instructions to sign in](https://developer.1password.com/docs/cli/get-started#sign-in).
-   * Rust requires running `rustup-init --no-modify-path` after the installation is complete. The rustup completions
-     script for zsh, which was initially generated from `rustup completions zsh`, are checked into this repo. Therefore,
-     if rustup's CLI significantly changes, I may need to update the contents of `zsh/zfunc/_rustup` with the latest
-     output of that command.
-   * The first time you git push a change that requires authentication, the git-credential-store will ask for the system
-     password. You should type it in and choose 'Always Allow' so it doesn't prompt every time.
+   * Some of the programs installed by Homebrew will have Caveats and follow-up work. Take a look at
+     [`brew/README.md`](brew/README.md#initial-setup) for details.
 
 #### Making local changes
 
@@ -53,7 +47,7 @@ Make changes inside the working copy of the repo.
 already in place. You may need to start a new shell or rerun the program that uses the changes.
   * For new files, create them in this repo. Then take a look at `install.conf.yaml` to make sure
 the file in this repo will be linked to the system location properly.
-    * WAIT: Before you run the install script in the next step, consider commenting out the
+    * **WAIT**: Before you run the install script in the next step, consider commenting out the
     expensive parts of performing an install, such as `brewfile`, updating submodules, or setting
     macOS defaults (which requests logging out and logging in).
     * Run the `./install` script to perform the link creation. Now you can start a new shell or rerun the program that uses
@@ -118,7 +112,7 @@ points.
 
 * [Dotbot tutorial by framework author](https://anishathalye.com/managing-your-dotfiles/)
 * [Another dotbot tutorial](https://www.elliotdenolf.com/blog/bootstrap-your-dotfiles-with-dotbot)
-* [](https://brandon.invergo.net/news/2012-05-26-using-gnu-stow-to-manage-your-dotfiles.html)
-* [](https://www.youtube.com/watch?v=CxAT1u8G7is)
+* [Using GNU Stow to manage your dotfiles](https://brandon.invergo.net/news/2012-05-26-using-gnu-stow-to-manage-your-dotfiles.html)
+* [Give Your Dotfiles a Home with GNU Stow](https://www.youtube.com/watch?v=CxAT1u8G7is)
 * [popular macos configs](https://github.com/mathiasbynens/dotfiles/blob/main/.macos)
   * [Strap project](https://github.com/MikeMcQuaid/strap)
