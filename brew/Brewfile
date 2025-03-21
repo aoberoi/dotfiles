@@ -60,3 +60,11 @@ brew "bento4" # package that contains mp4decrypt
 brew "yt-dlp" # fork of Youtube-DL with more features and built on modern Python
 # MakeMVK is used to convert ripped DVD images and discs into MKV files without transcoding the media
 cask "makemkv"
+
+# Screen recording
+cask "kap"
+
+# Keyboard and mouse sharing
+tap "deskflow/homebrew-tap"
+  cask "deskflow"
+
