@@ -1,5 +1,8 @@
 # Reference: https://github.com/Homebrew/homebrew-bundle
 
+# A better Terminal
+cask "ghostty"
+
 # Prerequisite, but good to just make sure its there
 brew "git"
 brew "git-filter-repo" # extension used for things like removing large files from history

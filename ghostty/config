@@ -1,0 +1,14 @@
+# Docs: https://ghostty.org/docs/config/reference
+
+background-opacity = 0.85
+background-blur-radius = 20
+
+# Font is reset and then set. If it was only set once, that would be appending a fallback.
+# Font is installed via homebrew
+font-family = ""
+font-family = "Monaspace Neon Var"
+font-size = 16
+
+# A temporary setting when running commands that have a really long output, and I actually want access to scrollback.
+# The reason its not enabled always is because it will take up RAM. The default is 10000000 (10MB).
+# scrollback-limit = 30000000

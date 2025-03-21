@@ -28,7 +28,7 @@
 
 # Create symlinks
 - link:
-    # target : source
+    # The format is `target : source`
 
     # zsh config
     ~/.zprofile: zsh/zprofile
@@ -42,6 +42,11 @@
 
     # git config (depends on vim config)
     ~/.gitconfig: git/gitconfig
+
+    # Ghostty config
+    ~/.config/ghostty/config:
+      create: true
+      path: ghostty/config
 
     # Create a "permalink" to the working copy of this repo, so other scripts can easily find the path
     ~/.dotfiles: ""
