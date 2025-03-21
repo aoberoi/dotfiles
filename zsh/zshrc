@@ -94,7 +94,7 @@ export BAT_THEME="ansi"
 #
 # fnm - Fast Node Manager
 #
-eval "$(fnm env --use-on-cd)"
+eval "$(fnm env --use-on-cd --shell zsh)"
 
 #
 # Rust
