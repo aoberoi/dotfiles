@@ -87,6 +87,12 @@ then
 fi
 
 #
+# Add custom user functions by prepending to fpath
+#
+# This contains rustup completions, which must be added to the fpath before compinit is called
+fpath=( ~/.zfunc "${fpath[@]}" )
+
+#
 # bat config
 #
 export BAT_THEME="ansi"
@@ -95,6 +101,7 @@ export BAT_THEME="ansi"
 # fnm - Fast Node Manager
 #
 eval "$(fnm env --use-on-cd --shell zsh)"
+autoload -Uz fnm_upgrade
 
 #
 # Rust
@@ -102,13 +109,6 @@ eval "$(fnm env --use-on-cd --shell zsh)"
 if [ -f ~/.cargo/env ]; then
   . "$HOME/.cargo/env"
 fi
-
-
-#
-# Add custom user functions by prepending to fpath
-#
-# This contains rustup completions, which must be added to the fpath before compinit is called
-fpath+=~/.zfunc
 
 #
 # fzf - keybindings and completions

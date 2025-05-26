@@ -42,6 +42,7 @@ SSH sessions are both **login and interactive shells**.
   other things that are based on interactivity. `setopt` and `unsetopt` are typically in this file.
 * `~/.zlogin` - Don't need this. Just use `~/.zprofile`.
 * `~/.zlogout` - Release any resources obtained in `~/.zprofile`. Could be used to reset a terminal window title.
+* `~/.zfunc` - Shell functions, used for extending the completion system and adding arbitrary helpers. [Helpful StackOverflow explanation](https://unix.stackexchange.com/a/33898)
 
 ### Plugin management
 

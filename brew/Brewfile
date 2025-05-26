@@ -19,6 +19,9 @@ brew "bat"
 tap "eth-p/software"
   brew "bat-extras-batman"
 
+# jq - macOS has this built in, but managing it through brew would allow for updating easier
+brew "jq"
+
 # Disk usage visualization utility
 brew "ncdu"
 
