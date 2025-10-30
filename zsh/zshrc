@@ -91,6 +91,8 @@ fi
 #
 # This contains rustup completions, which must be added to the fpath before compinit is called
 fpath=( ~/.zfunc "${fpath[@]}" )
+# Autoload all non-completion functions (those not starting with _)
+autoload -Uz ${fpath[1]}/[^_.]*(N:t)
 
 #
 # bat config
@@ -101,7 +103,6 @@ export BAT_THEME="ansi"
 # fnm - Fast Node Manager
 #
 eval "$(fnm env --use-on-cd --shell zsh)"
-autoload -Uz fnm_upgrade
 
 #
 # Rust
