@@ -1,0 +1,24 @@
+# Install all the global npm packages from another version of node managed by fnm
+# Before running this command, change your current node to the new version you want to be installing
+# the global packages into.
+#
+# In order to install the latest LTS node use: $ fnm install --lts
+# In order to install the latest node use: $ fnm install --latest
+#
+# In order to make the installed version default: $ fnm default VERSION
+#
+# Usage:
+# $ fnm_upgrade 18.4
+#
+# Afterwards, consider removing the old node version: $ fnm uninstall 18.4
+# Also consider updating npm: $ npm install -g npm@latest
+#
+# Credit: https://github.com/Schniz/fnm/issues/481#issuecomment-1292726042
+
+fnm_upgrade () {
+  fnm exec --using=$1 npm ls --global --json \
+    | jq -r '.dependencies | to_entries[] | .key+"@"+.value.version' \
+    | xargs npm i -g
+}
+
+fnm_upgrade "$@"
