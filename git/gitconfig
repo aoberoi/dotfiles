@@ -11,7 +11,15 @@
 [credential "https://invent.kde.org"]
 	provider = generic
 [credential]
-	helper = 
+	helper =
 	helper = /usr/local/share/gcm-core/git-credential-manager
 [credential "https://dev.azure.com"]
 	useHttpPath = true
+[merge]
+	# Set's default for the command `git mergetool` to vscode
+	# To override, use `git mergetool -t vim`
+	tool = vscode
+[mergetool "vscode"]
+	# Use base, local, remote, merged — ensure 'code' is on PATH
+	# The --new-window flag does not always work, but it does sometimes
+	cmd = code --wait --new-window --merge $REMOTE $LOCAL $BASE $MERGED
