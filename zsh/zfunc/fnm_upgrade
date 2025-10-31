@@ -1,22 +1,59 @@
-# Install all the global npm packages from another version of node managed by fnm
-# Before running this command, change your current node to the new version you want to be installing
-# the global packages into.
+# Install all the global npm packages from another version of node managed by fnm Before running
+# this command, change your current node to the new version you want to be installing the global
+# packages into.
 #
-# In order to install the latest LTS node use: $ fnm install --lts
-# In order to install the latest node use: $ fnm install --latest
+# In order to install the latest LTS node use: $ fnm install --lts In order to install the latest
+# node use: $ fnm install --latest
 #
 # In order to make the installed version default: $ fnm default VERSION
 #
-# Usage:
-# $ fnm_upgrade 18.4
+# Usage: $ fnm_upgrade 18.4
 #
-# Afterwards, consider removing the old node version: $ fnm uninstall 18.4
-# Also consider updating npm: $ npm install -g npm@latest
+# Afterwards, consider removing the old node version: $ fnm uninstall 18.4 Also consider updating
+# npm: $ npm install -g npm@latest
 #
 # Credit: https://github.com/Schniz/fnm/issues/481#issuecomment-1292726042
 
 fnm_upgrade () {
-  fnm exec --using=$1 npm ls --global --json \
+  if [ -z "$1" ]; then
+    echo "Error: Version number is required"
+    echo
+    echo "Usage: fnm_upgrade VERSION"
+    echo "Example: fnm_upgrade 18.4"
+    echo
+    echo "This command will install all global npm packages from the specified version"
+    echo "into your current version of node managed by fnm."
+    echo
+    echo "Make sure you have switched to your target node version before running this command."
+    return 1
+  fi
+
+  # Save current version before we do anything
+  ORIGINAL_VERSION=$(fnm current)
+
+  # Strip 'v' prefix if present
+  VERSION_ARG="${1#v}"
+
+  # Check if the version exists in installed versions (only match v-prefixed version numbers)
+  if ! fnm list | grep -q "v${VERSION_ARG}\\b\\|v${VERSION_ARG}\\.[0-9]\\+\\b"; then
+    # Try resolving as an alias (like 'lts/hydrogen')
+    if ! fnm use "$1" --silent-if-unchanged 2>/dev/null; then
+      echo "Error: Version '$1' is not installed and could not be resolved as an alias"
+      echo "Installed versions:"
+      fnm list
+      return 1
+    fi
+    # Get the actual version number that the alias resolved to
+    VERSION=$(fnm current)
+    # Switch back to original version
+    fnm use "$ORIGINAL_VERSION" --silent-if-unchanged
+    echo "Resolved alias '$1' to version $VERSION"
+  else
+    VERSION="$1"
+    echo "Using version $VERSION"
+  fi
+
+  fnm exec --using=$VERSION npm ls --global --json \
     | jq -r '.dependencies | to_entries[] | .key+"@"+.value.version' \
     | xargs npm i -g
 }
