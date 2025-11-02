@@ -1,0 +1,59 @@
+humanize_bytes () {
+    # Ensure Zsh semantics locally; prevent ksh array mode from affecting behavior
+    emulate -L zsh
+    setopt localoptions no_ksh_arrays
+
+    show_help() {
+        cat <<'EOF'
+Usage: humanize_bytes <bytes>
+Convert a raw byte count into a human-readable value using base-1024 units.
+
+Options:
+    -h, --help    Show this help message
+
+Examples:
+    humanize_bytes 1536
+    humanize_bytes 1073741824
+EOF
+    }
+
+    if [[ $# -eq 0 ]] || [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
+        show_help
+        return 1
+    fi
+
+    local input="$1"
+    if [[ ! "$input" =~ ^[0-9]+$ ]]; then
+        echo "Error: expected a non-negative integer byte count" >&2
+        return 1
+    fi
+
+    local -a size_units=(B KB MB GB TB PB EB)
+    local -i bytes=$input
+    local -i unit_index=1
+    local -i integer=$bytes
+    local -i remainder=0
+    local -i fraction=0
+    local -i max_index=${#size_units[@]}
+
+    while (( integer >= 1024 && unit_index < max_index )); do
+        remainder=$(( integer % 1024 ))
+        integer=$(( integer / 1024 ))
+        fraction=$(( remainder * 100 / 1024 ))
+        (( unit_index++ ))
+    done
+
+    if (( unit_index == 1 || fraction == 0 )); then
+        printf "%d%s\n" "$integer" "${size_units[unit_index]}"
+    else
+        printf "%d.%02d%s\n" "$integer" "$fraction" "${size_units[unit_index]}"
+    fi
+}
+
+if [[ -z "${HUMANIZE_BYTES_NOEXEC:-}" ]]; then
+    case $ZSH_EVAL_CONTEXT in
+        toplevel*|toplevel)
+            humanize_bytes "$@"
+            ;;
+    esac
+fi

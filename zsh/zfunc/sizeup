@@ -36,13 +36,14 @@ EOF
         return 1
     fi
 
+    # Get size on disk (actual allocated space, may be smaller due to optimizations)
+    local disk_size=$(du -sh "$target_path" | cut -f1)
+    echo "Size on disk:     $disk_size"
+
     # Get apparent size (uncompressed/logical size)
     local apparent_size=$(du -shA "$target_path" | cut -f1)
     echo "Apparent size:    $apparent_size"
 
-    # Get size on disk (actual allocated space, may be smaller due to optimizations)
-    local disk_size=$(du -sh "$target_path" | cut -f1)
-    echo "Size on disk:     $disk_size"
 }
 
 sizeup "$@"
