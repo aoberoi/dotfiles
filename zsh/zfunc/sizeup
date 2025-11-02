@@ -2,33 +2,78 @@ sizeup () {
     # Show help message
     show_help() {
         cat << EOF
-Usage: sizeup <path>
-Display both the apparent size and size on disk of a file or directory.
+Usage: sizeup [--sum] <path>
+Display the logical size and size on disk of a file or directory. When
+--sum is provided, also report the logical size by summing individual files.
 
 Options:
     -h, --help    Show this help message
+    --sum         Include a logical size calculated by summing file sizes
 
-The apparent size shows the logical size of the file or directory contents
-(the full, uncompressed size of the data).
-The size on disk shows how much physical disk space is actually being used,
-which is typically what you want when investigating disk space usage. This
-may be smaller than the apparent size due to filesystem compression, sparse
-files, or other storage optimizations.
+The logical size shows the full, uncompressed size of the data stored in the
+file or directory. The size on disk shows how much physical disk space is
+actually being used, which is typically what you want when investigating disk
+space usage. On macOS, this figure is rounded up to 512-byte allocation blocks,
+so small files may appear larger on disk than their logical size, and
+directories may include metadata overhead. Compression, sparse files, or other
+filesystem optimizations can also make the size on disk smaller than the
+logical size.
 
 Examples:
     sizeup /path/to/file
     sizeup /path/to/directory
-    sizeup -h
+    sizeup --sum /path/to/directory
 EOF
     }
 
-    # Check for help flags or missing arguments
-    if [[ $# -eq 0 ]] || [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+    if [[ $# -eq 0 ]]; then
         show_help
         return 1
     fi
 
-    local target_path="$1"
+    local sum_flag=0
+    local target_path=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                show_help
+                return 0
+                ;;
+            --sum)
+                sum_flag=1
+                shift
+                ;;
+            --)
+                shift
+                break
+                ;;
+            -*)
+                echo "Error: unknown option '$1'"
+                return 1
+                ;;
+            *)
+                target_path="$1"
+                shift
+                break
+                ;;
+        esac
+    done
+
+    if [[ -z "$target_path" ]] && [[ $# -gt 0 ]]; then
+        target_path="$1"
+        shift
+    fi
+
+    if [[ -z "$target_path" ]]; then
+        echo "Error: missing path argument"
+        return 1
+    fi
+
+    if [[ $# -gt 0 ]]; then
+        echo "Error: unexpected argument '$1'"
+        return 1
+    fi
 
     # Check if the path exists
     if [[ ! -e "$target_path" ]]; then
@@ -40,9 +85,28 @@ EOF
     local disk_size=$(du -sh "$target_path" | cut -f1)
     echo "Size on disk:     $disk_size"
 
-    # Get apparent size (uncompressed/logical size)
+    # Get logical size
     local apparent_size=$(du -shA "$target_path" | cut -f1)
-    echo "Apparent size:    $apparent_size"
+    echo "Logical size:     $apparent_size"
+
+    if (( sum_flag )); then
+        local sum_bytes
+
+        if [[ -f "$target_path" || -L "$target_path" ]]; then
+            sum_bytes=$(stat -f '%z' "$target_path" 2>/dev/null || echo 0)
+        else
+            sum_bytes=$(find "$target_path" -type f -print0 2>/dev/null | \
+                while IFS= read -r -d '' file; do
+                    stat -f '%z' "$file" || true
+                done | awk '{total+=$1} END {print total+0}')
+        fi
+
+        if [[ -z "$sum_bytes" ]]; then
+            sum_bytes=0
+        fi
+
+        echo "Logical size (sum of files): $sum_bytes"
+    fi
 
 }
 
