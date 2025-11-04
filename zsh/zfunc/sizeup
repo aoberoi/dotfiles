@@ -33,6 +33,101 @@ EOF
 
     local sum_flag=0
     local target_path=""
+    local humanize_available=0
+    local -r DU_BLOCK_SIZE=512
+
+    if command -v humanize_bytes >/dev/null 2>&1; then
+        humanize_available=1
+    fi
+
+    format_size_line() {
+        local label="$1"
+        local bytes="$2"
+        local human=""
+
+        if [[ -z "$bytes" ]]; then
+            bytes=0
+        fi
+
+        if (( humanize_available )); then
+            human=$(humanize_bytes "$bytes" 2>/dev/null)
+        fi
+
+        if [[ -z "$human" ]]; then
+            human="${bytes}B"
+        fi
+
+        printf "%-28s %s (%s)\n" "${label}:" "$human" "$bytes"
+    }
+
+    stat_value_or_zero() {
+        local format="$1"
+        local path="$2"
+        /usr/bin/stat -f "$format" "$path" 2>/dev/null || printf '0\n'
+    }
+
+    file_logical_bytes() {
+        stat_value_or_zero '%z' "$1"
+    }
+
+    file_disk_bytes() {
+        local blocks
+        blocks=$(stat_value_or_zero '%b' "$1")
+        printf '%s\n' "$(( blocks * DU_BLOCK_SIZE ))"
+    }
+
+    disk_bytes_for_path() {
+        local path="$1"
+
+        if [[ -f "$path" || -L "$path" ]]; then
+            file_disk_bytes "$path"
+            return
+        fi
+
+        local blocks
+        blocks=$(/usr/bin/du -s "$path" 2>/dev/null | /usr/bin/awk '{print $1}')
+
+        if [[ -n "$blocks" ]]; then
+            printf '%s\n' "$(( blocks * DU_BLOCK_SIZE ))"
+        else
+            printf '0\n'
+        fi
+    }
+
+    logical_bytes_for_path() {
+        local path="$1"
+
+        if [[ -f "$path" || -L "$path" ]]; then
+            file_logical_bytes "$path"
+            return
+        fi
+
+        local blocks
+        blocks=$(/usr/bin/du -s -A "$path" 2>/dev/null | /usr/bin/awk '{print $1}')
+
+        if [[ -n "$blocks" ]]; then
+            printf '%s\n' "$(( blocks * DU_BLOCK_SIZE ))"
+        else
+            printf '0\n'
+        fi
+    }
+
+    sum_bytes_for_path() {
+        local path="$1"
+        local bytes=""
+
+        if [[ -f "$path" || -L "$path" ]]; then
+            file_logical_bytes "$path"
+            return
+        fi
+
+        bytes=$(/usr/bin/find "$path" -type f -print0 2>/dev/null | \
+            while IFS= read -r -d '' file; do
+                /usr/bin/stat -f '%z' "$file" 2>/dev/null || printf '0\n'
+            done | /usr/bin/awk '{total+=$1} END {print total+0}')
+
+        printf '%s\n' "${bytes:-0}"
+    }
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -81,31 +176,20 @@ EOF
         return 1
     fi
 
-    # Get size on disk (actual allocated space, may be smaller due to optimizations)
-    local disk_size=$(du -sh "$target_path" | cut -f1)
-    echo "Size on disk:     $disk_size"
+    # Get size on disk (actual allocated space, rounded to 512-byte blocks)
+    local disk_bytes
+    disk_bytes=$(disk_bytes_for_path "$target_path")
+    format_size_line "Size on disk" "$disk_bytes"
 
-    # Get logical size
-    local apparent_size=$(du -shA "$target_path" | cut -f1)
-    echo "Logical size:     $apparent_size"
+    # Get logical size (apparent size of data)
+    local logical_bytes
+    logical_bytes=$(logical_bytes_for_path "$target_path")
+    format_size_line "Logical size" "$logical_bytes"
 
     if (( sum_flag )); then
         local sum_bytes
-
-        if [[ -f "$target_path" || -L "$target_path" ]]; then
-            sum_bytes=$(stat -f '%z' "$target_path" 2>/dev/null || echo 0)
-        else
-            sum_bytes=$(find "$target_path" -type f -print0 2>/dev/null | \
-                while IFS= read -r -d '' file; do
-                    stat -f '%z' "$file" || true
-                done | awk '{total+=$1} END {print total+0}')
-        fi
-
-        if [[ -z "$sum_bytes" ]]; then
-            sum_bytes=0
-        fi
-
-        echo "Logical size (sum of files): $sum_bytes"
+        sum_bytes=$(sum_bytes_for_path "$target_path")
+        format_size_line "Logical size (sum of files)" "$sum_bytes"
     fi
 
 }
