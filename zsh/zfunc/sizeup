@@ -2,13 +2,14 @@ sizeup () {
     # Show help message
     show_help() {
         cat << EOF
-Usage: sizeup [--sum] <path>
+Usage: sizeup [--sum] [--explain] <path>
 Display the logical size and size on disk of a file or directory. When
 --sum is provided, also report the logical size by summing individual files.
 
 Options:
     -h, --help    Show this help message
     --sum         Include a logical size calculated by summing file sizes
+    --explain     Print diagnostics explaining differences in measurements
 
 The logical size shows the full, uncompressed size of the data stored in the
 file or directory. The size on disk shows how much physical disk space is
@@ -32,6 +33,7 @@ EOF
     fi
 
     local sum_flag=0
+    local explain_flag=0
     local target_path=""
     local humanize_available=0
     local -r DU_BLOCK_SIZE=512
@@ -129,6 +131,20 @@ EOF
         printf '%s\n' "${bytes:-0}"
     }
 
+    dedup_bytes_for_path() {
+        local path="$1"
+
+        if [[ -f "$path" || -L "$path" ]]; then
+            file_logical_bytes "$path"
+            return
+        fi
+
+        /usr/bin/find "$path" -type f -print0 2>/dev/null | \
+            while IFS= read -r -d '' file; do
+                /usr/bin/stat -f '%i %z' "$file" 2>/dev/null || printf '0 0\n'
+            done | /usr/bin/awk '{if(!seen[$1]++) sum+=$2} END {print sum+0}'
+    }
+
     while [[ $# -gt 0 ]]; do
         case "$1" in
             -h|--help)
@@ -137,6 +153,10 @@ EOF
                 ;;
             --sum)
                 sum_flag=1
+                shift
+                ;;
+            --explain)
+                explain_flag=1
                 shift
                 ;;
             --)
@@ -176,6 +196,10 @@ EOF
         return 1
     fi
 
+    # Prepare sum placeholders
+    local sum_bytes=""
+    local sum_dedup_bytes=""
+
     # Get size on disk (actual allocated space, rounded to 512-byte blocks)
     local disk_bytes
     disk_bytes=$(disk_bytes_for_path "$target_path")
@@ -187,9 +211,273 @@ EOF
     format_size_line "Logical size" "$logical_bytes"
 
     if (( sum_flag )); then
-        local sum_bytes
         sum_bytes=$(sum_bytes_for_path "$target_path")
         format_size_line "Logical size (sum of files)" "$sum_bytes"
+
+        sum_dedup_bytes=$(dedup_bytes_for_path "$target_path")
+        if [[ -n "$sum_dedup_bytes" && "$sum_dedup_bytes" != "$sum_bytes" ]]; then
+            format_size_line "Unique file bytes (dedup)" "$sum_dedup_bytes"
+        fi
+    fi
+
+    if (( explain_flag )); then
+        echo
+        echo "Explain Differences"
+        # Baselines (re-use logical_bytes to avoid conversion drift)
+        local du_app_bytes="$logical_bytes"
+        local stat_sum_nodedup=""
+        local stat_sum_dedup=""
+        if [[ -n "$sum_bytes" ]]; then
+            stat_sum_nodedup="$sum_bytes"
+        elif [[ -d "$target_path" ]]; then
+            stat_sum_nodedup=$(sum_bytes_for_path "$target_path")
+        else
+            stat_sum_nodedup=$(file_logical_bytes "$target_path")
+        fi
+
+        if [[ -n "$sum_dedup_bytes" ]]; then
+            stat_sum_dedup="$sum_dedup_bytes"
+        elif [[ -d "$target_path" ]]; then
+            stat_sum_dedup=$(dedup_bytes_for_path "$target_path")
+        else
+            stat_sum_dedup=$(file_logical_bytes "$target_path")
+        fi
+
+        local dir_bytes=0
+        local symlink_bytes=0 socket_bytes=0 char_bytes=0 block_bytes=0 other_bytes=0
+        local file_rounding_bytes=0
+        local dir_rounding_bytes=0
+        if [[ -d "$target_path" ]]; then
+            dir_bytes=$(/usr/bin/find "$target_path" -type d -print0 2>/dev/null | \
+                while IFS= read -r -d '' d; do
+                    /usr/bin/stat -f '%z' "$d" 2>/dev/null || printf '0\n'
+                done | /usr/bin/awk '{total+=$1} END {print total+0}')
+
+            symlink_bytes=$(/usr/bin/find "$target_path" -type l -print0 2>/dev/null | \
+                while IFS= read -r -d '' link; do
+                    /usr/bin/stat -f '%z' "$link" 2>/dev/null || printf '0\n'
+                done | /usr/bin/awk '{total+=$1} END {print total+0}')
+
+            socket_bytes=$(/usr/bin/find "$target_path" -type s -print0 2>/dev/null | \
+                while IFS= read -r -d '' sock; do
+                    /usr/bin/stat -f '%z' "$sock" 2>/dev/null || printf '0\n'
+                done | /usr/bin/awk '{total+=$1} END {print total+0}')
+
+            char_bytes=$(/usr/bin/find "$target_path" -type c -print0 2>/dev/null | \
+                while IFS= read -r -d '' dev; do
+                    /usr/bin/stat -f '%z' "$dev" 2>/dev/null || printf '0\n'
+                done | /usr/bin/awk '{total+=$1} END {print total+0}')
+
+            block_bytes=$(/usr/bin/find "$target_path" -type b -print0 2>/dev/null | \
+                while IFS= read -r -d '' dev; do
+                    /usr/bin/stat -f '%z' "$dev" 2>/dev/null || printf '0\n'
+                done | /usr/bin/awk '{total+=$1} END {print total+0}')
+
+            other_bytes=$(/usr/bin/find "$target_path" ! -type f ! -type d ! -type l ! -type s ! -type c ! -type b -print0 2>/dev/null | \
+                while IFS= read -r -d '' item; do
+                    /usr/bin/stat -f '%z' "$item" 2>/dev/null || printf '0\n'
+                done | /usr/bin/awk '{total+=$1} END {print total+0}')
+
+            if command -v python3 >/dev/null 2>&1; then
+                local rounding_output
+                rounding_output=$(TARGET_PATH="$target_path" python3 - <<'PY'
+import os, math
+
+root = os.environ.get("TARGET_PATH")
+if not root:
+    print(0, 0)
+    raise SystemExit
+file_round = 0
+dir_round = 0
+seen = set()
+
+for dirpath, dirnames, filenames in os.walk(root, followlinks=False, onerror=lambda e: None):
+    try:
+        st_dir = os.lstat(dirpath)
+    except (FileNotFoundError, PermissionError):
+        continue
+    dir_round += ((st_dir.st_size + 511) // 512) * 512 - st_dir.st_size
+    for name in filenames:
+        path = os.path.join(dirpath, name)
+        try:
+            st = os.lstat(path)
+        except (FileNotFoundError, PermissionError):
+            continue
+        key = (st.st_dev, st.st_ino)
+        if key in seen:
+            continue
+        seen.add(key)
+        file_round += ((st.st_size + 511) // 512) * 512 - st.st_size
+
+print(file_round, dir_round)
+PY
+)
+                if [[ -n "$rounding_output" ]]; then
+                    read -r file_rounding_bytes dir_rounding_bytes <<< "$rounding_output"
+                fi
+            fi
+        fi
+
+        local du_errors find_errors
+        du_errors=$(/usr/bin/du -sA "$target_path" 2>&1 | /usr/bin/grep -i 'denied\|error' || true)
+        if [[ -d "$target_path" ]]; then
+            find_errors=$( (/usr/bin/find "$target_path" -type f -exec /usr/bin/stat -f %z {} +) 2>&1 | /usr/bin/grep -i 'stat:' || true)
+        fi
+
+        # Compute deltas and bucketization
+        local delta=$(( stat_sum_dedup - du_app_bytes ))
+        local hl_savings=$(( stat_sum_nodedup - stat_sum_dedup ))
+        local special_total=$(( symlink_bytes + socket_bytes + char_bytes + block_bytes + other_bytes ))
+
+        local dir_contrib=$(( -dir_bytes ))
+        local special_contrib=$(( -special_total ))
+        local file_round_contrib=$(( -file_rounding_bytes ))
+        local dir_round_contrib=$(( -dir_rounding_bytes ))
+
+        # Helper to print bucket line with percent of delta
+        _print_bucket() {
+            local label="$1"; local bytes="$2"
+            local pct="0"
+            if [[ "$delta" != 0 ]]; then
+                pct=$(/usr/bin/awk -v b="$bytes" -v d="$delta" 'BEGIN{printf("%.1f", (b*100.0)/d)}')
+            fi
+            local human_bytes
+            local sign=""
+            local abs_bytes="$bytes"
+            if [[ "$bytes" == -* ]]; then
+                sign="-"
+                abs_bytes=${bytes#-}
+            fi
+            if command -v humanize_bytes >/dev/null 2>&1; then
+                human_bytes=$(humanize_bytes "$abs_bytes" 2>/dev/null)
+            else
+                human_bytes="${abs_bytes}B"
+            fi
+            printf "  %-24s %10s%s (%s bytes)  %6s%%\n" "$label:" "$sign" "$human_bytes" "$bytes" "$pct"
+        }
+
+        # Summary line
+        local delta_abs="$delta"
+        if [[ "$delta" == -* ]]; then
+            delta_abs=${delta#-}
+        fi
+        local delta_human
+        if command -v humanize_bytes >/dev/null 2>&1; then
+            delta_human=$(humanize_bytes "$delta_abs" 2>/dev/null)
+        else
+            delta_human="${delta_abs}B"
+        fi
+        if (( delta > 0 )); then
+            echo "Summary: Unique file bytes (dedup) are +${delta_human} ($delta bytes) vs logical size."
+        elif (( delta < 0 )); then
+            echo "Summary: Unique file bytes (dedup) are -${delta_human} ($delta bytes) vs logical size."
+        else
+            echo "Summary: Unique file bytes (dedup) match logical size."
+        fi
+
+        local raw_delta=$(( stat_sum_nodedup - du_app_bytes ))
+        if (( raw_delta != delta )); then
+            local raw_abs="$raw_delta"
+            if [[ "$raw_delta" == -* ]]; then
+                raw_abs=${raw_delta#-}
+            fi
+            local raw_human
+            if command -v humanize_bytes >/dev/null 2>&1; then
+                raw_human=$(humanize_bytes "$raw_abs" 2>/dev/null)
+            else
+                raw_human="${raw_abs}B"
+            fi
+            if (( raw_delta > 0 )); then
+                echo "  Including duplicate hard links, sum of file entries is +${raw_human} ($raw_delta bytes) vs logical size."
+            elif (( raw_delta < 0 )); then
+                echo "  Including duplicate hard links, sum of file entries is -${raw_human} ($raw_delta bytes) vs logical size."
+            fi
+        fi
+
+        echo
+        echo "Breakdown (unique vs logical):"
+        _print_bucket "Missing directory metadata" "$dir_contrib"
+        _print_bucket "512B rounding (files)" "$file_round_contrib"
+        _print_bucket "512B rounding (directories)" "$dir_round_contrib"
+        _print_bucket "Missing special items" "$special_contrib"
+
+        # Scope diagnostics: symlinks and mount boundaries
+        local stat_sum_follow=0
+        local du_app_x=""
+        if [[ -d "$target_path" ]]; then
+            # Sum following symlinks
+            stat_sum_follow=$(/usr/bin/find -L "$target_path" -type f -print0 2>/dev/null | \
+                while IFS= read -r -d '' file; do
+                    /usr/bin/stat -f '%z' "$file" 2>/dev/null || printf '0\n'
+                done | /usr/bin/awk '{total+=$1} END {print total+0}')
+            # du apparent without crossing filesystems
+            if /usr/bin/du -x -sA "$target_path" >/dev/null 2>&1; then
+                local du_x_blocks
+                du_x_blocks=$(/usr/bin/du -x -sA "$target_path" | /usr/bin/awk '{print $1}')
+                du_app_x=$(( du_x_blocks * DU_BLOCK_SIZE ))
+            fi
+        fi
+
+        # Remainder bucket
+        local explained=$(( dir_contrib + file_round_contrib + dir_round_contrib + special_contrib ))
+        local remainder=$(( delta - explained ))
+        _print_bucket "Remaining difference" "$remainder"
+
+        if (( hl_savings != 0 )); then
+            local hl_human="$hl_savings"
+            if command -v humanize_bytes >/dev/null 2>&1; then
+                hl_human=$(humanize_bytes "$hl_savings" 2>/dev/null)
+            fi
+            echo
+            echo "Hard-link duplicates removed when deduping: $hl_human ($hl_savings bytes)"
+        fi
+
+        # Scope interpretation hints
+        if [[ -d "$target_path" ]]; then
+            echo
+            echo "Scope checks:"
+            local follow_delta=$(( stat_sum_follow - stat_sum_dedup ))
+            if [[ "$follow_delta" != 0 ]]; then
+                _print_bucket "Following symlinks adds" "$follow_delta"
+            fi
+            if [[ -n "$du_app_x" && "$du_app_x" != "$du_app_bytes" ]]; then
+                local xdelta=$(( du_app_bytes - du_app_x ))
+                _print_bucket "Cross-filesystem content" "$xdelta"
+            fi
+            if [[ "$follow_delta" == 0 && ( -z "$du_app_x" || "$du_app_x" == "$du_app_bytes" ) ]]; then
+                echo "  No symlink or cross-filesystem scope differences detected."
+            fi
+        fi
+
+        # Errors
+        if [[ -n "$du_errors" || -n "$find_errors" ]]; then
+            echo
+            echo "Issues encountered:"
+            [[ -n "$du_errors" ]] && echo "$du_errors"
+            [[ -n "$find_errors" ]] && echo "$find_errors"
+        fi
+
+        # Top contributors
+        if [[ -d "$target_path" ]]; then
+            echo
+            echo "Top directories by directory-entry bytes:"
+            /usr/bin/find "$target_path" -type d -exec /usr/bin/stat -f '%z %N' {} + 2>/dev/null | /usr/bin/awk '$1>0' | /usr/bin/sort -nr | /usr/bin/head
+
+            # Show top hard-link groups if any savings
+            if (( hl_savings > 0 )); then
+                echo
+                echo "Largest hard-link groups (inode, links, bytes, sample path):"
+                /usr/bin/find "$target_path" -type f -links +1 -exec /usr/bin/stat -f '%i %l %z %N' {} + 2>/dev/null | /usr/bin/sort -k1,1 -k3,3nr | /usr/bin/head
+            fi
+        fi
+
+        # Glossary
+        echo
+        echo "Glossary:"
+        echo "  Logical size: what the system reports for the folder’s content."
+        echo "  Sum of file sizes: add up bytes of regular files only."
+        echo "  Directory metadata: the folders themselves occupy bytes (entries)."
+        echo "  Hard links: multiple names pointing to the same data."
     fi
 
 }
