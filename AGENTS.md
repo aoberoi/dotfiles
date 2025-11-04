@@ -53,6 +53,13 @@ This repository contains dotfiles for macOS systems, using [Dotbot](https://gith
    - Direct downloads preferred for apps when available
    - Brew cask used only when recommended by creator
 
+4. **Code conventions**
+   - Custom functions in the `zsh/zfunc` directory should be written in idiomatic zsh syntax. It's
+     not important to make many concessions for compatibility different shells (e.g. bash).
+   - Across all directories, when writing a function in any language, comment the purpose of the
+     function concisely and clearly. Describe the arguments that are expected, including any special
+     cases that are handled by the function.
+
 ## Integration Points
 
 1. **Machine Setup**
