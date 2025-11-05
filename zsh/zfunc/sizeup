@@ -20,6 +20,11 @@ directories may include metadata overhead. Compression, sparse files, or other
 filesystem optimizations can also make the size on disk smaller than the
 logical size.
 
+When using --explain, any remaining “Unreadable / other” bytes usually come
+from content the script cannot stat directly (e.g., protected directories,
+extended attributes, or resource forks that du -sA counts in the apparent
+size). Those paths are listed when detected so you can investigate further.
+
 Examples:
     sizeup /path/to/file
     sizeup /path/to/directory
@@ -108,6 +113,27 @@ EOF
             return
         fi
         printf "%${count}s" "" | tr ' ' "$char"
+    }
+
+    format_cell() {
+        local value="${1:-0}"
+        local abs=${value#-}
+        local human=$(format_bytes "$abs")
+        local text
+        local color=""
+        if (( value > 0 )); then
+            text="+${human} (${value})"
+            color=$color_pos
+        elif (( value < 0 )); then
+            text="-${human} (${value})"
+            color=$color_neg
+        else
+            text="0B (0)"
+        fi
+        if (( use_color )) && (( value != 0 )); then
+            text=$(colorize "$text" "$color")
+        fi
+        printf "%-26s" "$text"
     }
 
     stat_value_or_zero() {
@@ -292,77 +318,108 @@ EOF
         fi
 
         local dir_bytes=0
-        local symlink_bytes=0 socket_bytes=0 char_bytes=0 block_bytes=0 other_bytes=0
-        local file_rounding_bytes=0
         local dir_rounding_bytes=0
-        if [[ -d "$target_path" ]]; then
-            dir_bytes=$(/usr/bin/find "$target_path" -type d -print0 2>/dev/null | \
-                while IFS= read -r -d '' d; do
-                    /usr/bin/stat -f '%z' "$d" 2>/dev/null || printf '0\n'
-                done | /usr/bin/awk '{total+=$1} END {print total+0}')
+        local dir_alloc_bytes=0
+        local file_rounding_bytes=0
+        local file_round_alloc_bytes=0
+        local special_total=0
+        local special_alloc_bytes=0
 
-            symlink_bytes=$(/usr/bin/find "$target_path" -type l -print0 2>/dev/null | \
-                while IFS= read -r -d '' link; do
-                    /usr/bin/stat -f '%z' "$link" 2>/dev/null || printf '0\n'
-                done | /usr/bin/awk '{total+=$1} END {print total+0}')
+        local -a skipped_paths=()
 
-            socket_bytes=$(/usr/bin/find "$target_path" -type s -print0 2>/dev/null | \
-                while IFS= read -r -d '' sock; do
-                    /usr/bin/stat -f '%z' "$sock" 2>/dev/null || printf '0\n'
-                done | /usr/bin/awk '{total+=$1} END {print total+0}')
-
-            char_bytes=$(/usr/bin/find "$target_path" -type c -print0 2>/dev/null | \
-                while IFS= read -r -d '' dev; do
-                    /usr/bin/stat -f '%z' "$dev" 2>/dev/null || printf '0\n'
-                done | /usr/bin/awk '{total+=$1} END {print total+0}')
-
-            block_bytes=$(/usr/bin/find "$target_path" -type b -print0 2>/dev/null | \
-                while IFS= read -r -d '' dev; do
-                    /usr/bin/stat -f '%z' "$dev" 2>/dev/null || printf '0\n'
-                done | /usr/bin/awk '{total+=$1} END {print total+0}')
-
-            other_bytes=$(/usr/bin/find "$target_path" ! -type f ! -type d ! -type l ! -type s ! -type c ! -type b -print0 2>/dev/null | \
-                while IFS= read -r -d '' item; do
-                    /usr/bin/stat -f '%z' "$item" 2>/dev/null || printf '0\n'
-                done | /usr/bin/awk '{total+=$1} END {print total+0}')
-
-            if command -v python3 >/dev/null 2>&1; then
-                local rounding_output
-                rounding_output=$(TARGET_PATH="$target_path" python3 - <<'PY'
-import os, math
+        if [[ -d "$target_path" ]] && command -v python3 >/dev/null 2>&1; then
+            local stats_output
+            if stats_output=$(TARGET_PATH="$target_path" python3 - <<'PY'
+import os, stat
 
 root = os.environ.get("TARGET_PATH")
 if not root:
-    print(0, 0)
+    print(0, 0, 0, 0, 0, 0, 0, 0)
     raise SystemExit
-file_round = 0
-dir_round = 0
-seen = set()
 
-for dirpath, dirnames, filenames in os.walk(root, followlinks=False, onerror=lambda e: None):
+file_round512 = 0
+file_round_alloc = 0
+dir_size = 0
+dir_round512 = 0
+dir_alloc = 0
+special_size = 0
+special_alloc = 0
+
+seen = set()
+skipped = []
+
+def round512(value):
+    return ((value + 511) // 512) * 512
+
+for dirpath, dirnames, filenames in os.walk(root, followlinks=False, onerror=lambda e: skipped.append(e.filename if getattr(e, "filename", None) else str(e))):
     try:
         st_dir = os.lstat(dirpath)
-    except (FileNotFoundError, PermissionError):
+    except (FileNotFoundError, PermissionError, OSError):
+        skipped.append(dirpath)
         continue
-    dir_round += ((st_dir.st_size + 511) // 512) * 512 - st_dir.st_size
+    size = st_dir.st_size
+    alloc = st_dir.st_blocks * 512
+    dir_size += size
+    dir_alloc += alloc
+    dir_round512 += max(round512(size) - size, 0)
+
     for name in filenames:
         path = os.path.join(dirpath, name)
         try:
             st = os.lstat(path)
-        except (FileNotFoundError, PermissionError):
+        except (FileNotFoundError, PermissionError, OSError):
+            skipped.append(path)
             continue
-        key = (st.st_dev, st.st_ino)
-        if key in seen:
-            continue
-        seen.add(key)
-        file_round += ((st.st_size + 511) // 512) * 512 - st.st_size
+        mode = st.st_mode
+        if stat.S_ISREG(mode):
+            key = (st.st_dev, st.st_ino)
+            if key in seen:
+                continue
+            seen.add(key)
+            size = st.st_size
+            alloc = st.st_blocks * 512
+            file_round512 += max(round512(size) - size, 0)
+            file_round_alloc += max(alloc - size, 0)
+        elif stat.S_ISLNK(mode) or stat.S_ISCHR(mode) or stat.S_ISBLK(mode) or stat.S_ISFIFO(mode) or stat.S_ISSOCK(mode):
+            size = st.st_size
+            alloc = st.st_blocks * 512
+            special_size += size
+            special_alloc += alloc
 
-print(file_round, dir_round)
+print(file_round512, file_round_alloc, dir_size, dir_round512, dir_alloc, special_size, special_alloc)
+for path in skipped:
+    print("SKIP:" + path)
 PY
-)
-                if [[ -n "$rounding_output" ]]; then
-                    read -r file_rounding_bytes dir_rounding_bytes <<< "$rounding_output"
+) ; then
+            if [[ -n "$stats_output" ]]; then
+                local summary_line
+                summary_line=$(printf '%s\n' "$stats_output" | /usr/bin/head -n1)
+                read -r file_rounding_bytes file_round_alloc_bytes dir_bytes dir_rounding_bytes dir_alloc_bytes special_total special_alloc_bytes <<< "$summary_line"
+
+                local rest
+                rest=$(printf '%s\n' "$stats_output" | /usr/bin/tail -n +2)
+                if [[ -n "$rest" ]]; then
+                    while IFS= read -r line; do
+                        [[ -z "$line" ]] && continue
+                        if [[ "$line" == SKIP:* ]]; then
+                            skipped_paths+=("${line#SKIP:}")
+                        fi
+                    done <<< "$rest"
                 fi
+            fi
+            fi
+        elif [[ -f "$target_path" || -L "$target_path" ]]; then
+            local file_size=$(file_logical_bytes "$target_path")
+            local file_blocks=$(stat_value_or_zero '%b' "$target_path")
+            file_rounding_bytes=$(( ((file_size + 511) / 512) * 512 - file_size ))
+            file_round_alloc_bytes=$(( file_blocks * DU_BLOCK_SIZE - file_size ))
+            (( file_rounding_bytes < 0 )) && file_rounding_bytes=0
+            (( file_round_alloc_bytes < 0 )) && file_round_alloc_bytes=0
+            if [[ -L "$target_path" ]]; then
+                special_total=$file_size
+                special_alloc_bytes=$(( file_blocks * DU_BLOCK_SIZE ))
+                file_rounding_bytes=0
+                file_round_alloc_bytes=0
             fi
         fi
 
@@ -373,10 +430,17 @@ PY
         fi
 
         # Compute deltas and bucketization
+        dir_bytes=${dir_bytes:-0}
+        dir_rounding_bytes=${dir_rounding_bytes:-0}
+        dir_alloc_bytes=${dir_alloc_bytes:-0}
+        file_rounding_bytes=${file_rounding_bytes:-0}
+        file_round_alloc_bytes=${file_round_alloc_bytes:-0}
+        special_total=${special_total:-0}
+        special_alloc_bytes=${special_alloc_bytes:-0}
+
         local bridge_total=$(( du_app_bytes - stat_sum_dedup ))
         local delta=$(( stat_sum_dedup - du_app_bytes ))
         local hl_savings=$(( stat_sum_nodedup - stat_sum_dedup ))
-        local special_total=$(( symlink_bytes + socket_bytes + char_bytes + block_bytes + other_bytes ))
 
         local dir_contrib=$dir_bytes
         local special_contrib=$special_total
@@ -488,28 +552,8 @@ PY
         # Remainder bucket
         local explained=$(( dir_contrib + file_round_contrib + dir_round_contrib + special_contrib ))
         local remainder=$(( bridge_total - explained ))
-        _print_bucket "Remaining difference" "$remainder"
-
-        local -a contrib_labels
-        local -a contrib_values
-        local -a contrib_chars
-        contrib_labels=(
-            "Directory metadata"
-            "512B rounding (files)"
-            "512B rounding (directories)"
-            "Special items"
-        )
-        contrib_values=(
-            "$dir_contrib"
-            "$file_round_contrib"
-            "$dir_round_contrib"
-            "$special_contrib"
-        )
-        contrib_chars=( M F R S )
-        if [[ "$remainder" != 0 ]]; then
-            contrib_labels+=("Unexplained remainder")
-            contrib_values+=("$remainder")
-            contrib_chars+=("?")
+        if (( remainder != 0 )); then
+            _print_bucket "Remaining difference" "$remainder"
         fi
 
         if (( hl_savings != 0 )); then
@@ -525,175 +569,121 @@ PY
             echo "Hard-link duplicates removed when deduping: $hl_display ($hl_savings bytes)"
         fi
 
-        echo
-        echo "Visualization (unique → logical):"
-        local term_cols=${COLUMNS:-$(tput cols 2>/dev/null || echo 80)}
-        local bar_width=42
-        if (( term_cols > 100 )); then
-            bar_width=$(( term_cols - 58 ))
+        # Prepare table values
+        dir_bytes=${dir_bytes:-0}
+        dir_rounding_bytes=${dir_rounding_bytes:-0}
+        dir_alloc_bytes=${dir_alloc_bytes:-0}
+        file_rounding_bytes=${file_rounding_bytes:-0}
+        file_round_alloc_bytes=${file_round_alloc_bytes:-0}
+        special_total=${special_total:-0}
+        special_alloc_bytes=${special_alloc_bytes:-0}
+
+        local logical_delta=$(( du_app_bytes - stat_sum_dedup ))
+        local disk_delta=$(( disk_bytes - stat_sum_dedup ))
+        local sum_delta=$(( stat_sum_nodedup - stat_sum_dedup ))
+
+        local -a component_names
+        local -a col_logical
+        local -a col_disk
+        local -a col_sum
+        component_names=(
+            "Directory metadata"
+            "Directory block rounding"
+            "File block rounding"
+            "Special items"
+            "Hard-link duplicates"
+        )
+        col_logical=(
+            $dir_bytes
+            $dir_rounding_bytes
+            $file_rounding_bytes
+            $special_total
+            0
+        )
+        col_disk=(
+            $dir_alloc_bytes
+            0
+            $file_round_alloc_bytes
+            $special_alloc_bytes
+            0
+        )
+        col_sum=(
+            0
+            0
+            0
+            0
+            $hl_savings
+        )
+
+        local logical_explained=0
+        local disk_explained=0
+        local sum_explained=0
+        for val in "${col_logical[@]}"; do (( logical_explained += val )); done
+        for val in "${col_disk[@]}"; do (( disk_explained += val )); done
+        for val in "${col_sum[@]}"; do (( sum_explained += val )); done
+
+        local logical_remainder=$(( logical_delta - logical_explained ))
+        local disk_remainder=$(( disk_delta - disk_explained ))
+        local sum_remainder=$(( sum_delta - sum_explained ))
+
+        if (( logical_remainder != 0 )); then
+            component_names+=("Unreadable / other")
+            col_logical+=("$logical_remainder")
+            col_disk+=(0)
+            col_sum+=(0)
+            logical_explained=$(( logical_explained + logical_remainder ))
+            logical_remainder=0
         fi
-        (( bar_width < 30 )) && bar_width=30
-
-        local max_value=$du_app_bytes
-        if (( stat_sum_dedup > max_value )); then
-            max_value=$stat_sum_dedup
+        if (( disk_remainder != 0 )); then
+            component_names+=("Disk remainder")
+            col_logical+=(0)
+            col_disk+=("$disk_remainder")
+            col_sum+=(0)
+            disk_explained=$(( disk_explained + disk_remainder ))
+            disk_remainder=0
         fi
-        (( max_value == 0 )) && max_value=1
-
-        local unique_len=$(( stat_sum_dedup * bar_width / max_value ))
-        local logical_len=$(( du_app_bytes * bar_width / max_value ))
-        if (( stat_sum_dedup > 0 && unique_len == 0 )); then unique_len=1; fi
-        if (( du_app_bytes > 0 && logical_len == 0 )); then logical_len=1; fi
-        (( unique_len > bar_width )) && unique_len=$bar_width
-        (( logical_len > bar_width )) && logical_len=$bar_width
-
-        local max_len=$unique_len
-        (( logical_len > max_len )) && max_len=$logical_len
-        local min_len=$unique_len
-        (( logical_len < min_len )) && min_len=$logical_len
-
-        local diff_abs=${bridge_total#-}
-        local diff_len=$(( max_len - min_len ))
-        local common_len=$min_len
-        local chart_unique=""
-        local chart_logical=""
-        local diff_bar=""
-        local diff_sign=1
-        (( bridge_total < 0 )) && diff_sign=-1
-
-        local build_diff_bar() {
-            local length="$1"
-            local total_abs="$2"
-            local sign_required="$3"
-            local remaining="$length"
-            local result=""
-            local last_char="."
-            local idx=1
-            local count=${#contrib_labels[@]}
-            while (( idx <= count )) && (( remaining > 0 )); do
-                local value=${contrib_values[idx]}
-                local char=${contrib_chars[idx]}
-                if [[ -z "$value" || -z "$char" ]]; then
-                    (( idx++ ))
-                    continue
-                fi
-                local val_sign=1
-                local abs_val=$value
-                if (( value < 0 )); then
-                    val_sign=-1
-                    abs_val=${value#-}
-                fi
-                if (( abs_val == 0 || val_sign != sign_required )); then
-                    (( idx++ ))
-                    continue
-                fi
-                local chars=$(( abs_val * length / total_abs ))
-                if (( chars == 0 )); then chars=1; fi
-                if (( chars > remaining )); then chars=$remaining; fi
-                result+=$(repeat_char "$char" "$chars")
-                remaining=$(( remaining - chars ))
-                last_char="$char"
-                (( idx++ ))
-            done
-            if (( remaining > 0 )); then
-                result+=$(repeat_char "$last_char" "$remaining")
-            fi
-            printf "%s" "$result"
-        }
-
-        if (( diff_abs > 0 && diff_len > 0 )); then
-            diff_bar=$(build_diff_bar "$diff_len" "$diff_abs" "$diff_sign")
-        fi
-
-        local diff_lower=$(printf "%s" "$diff_bar" | tr 'A-Z' 'a-z')
-
-        if (( bridge_total >= 0 )); then
-            chart_unique="$(repeat_char "#" "$common_len")${diff_lower}"
-            chart_logical="$(repeat_char "#" "$common_len")${diff_bar}"
-        else
-            chart_unique="$(repeat_char "#" "$common_len")${diff_bar}"
-            chart_logical="$(repeat_char "#" "$common_len")${diff_lower}"
-        fi
-
-        local pad_unique=$(( bar_width - max_len ))
-        (( pad_unique < 0 )) && pad_unique=0
-        local pad_logical=$pad_unique
-        chart_unique+=$(repeat_char " " "$pad_unique")
-        chart_logical+=$(repeat_char " " "$pad_logical")
-
-        printf "  %-24s |%s| %s (%s)\n" "$(colorize 'Unique bytes' "$color_neutral")" "$chart_unique" "$(format_bytes "$stat_sum_dedup")" "$stat_sum_dedup"
-        printf "  %-24s |%s| %s (%s)\n" "$(colorize 'Logical size' "$color_pos")" "$chart_logical" "$(format_bytes "$du_app_bytes")" "$du_app_bytes"
-
-        if (( diff_abs > 0 && diff_len > 0 )); then
-            echo
-            echo "  Difference components:"
-            local idx=1
-            local total_items=${#contrib_labels[@]}
-            while (( idx <= total_items )); do
-                local label=${contrib_labels[idx]}
-                local value=${contrib_values[idx]}
-                local char=${contrib_chars[idx]}
-                if [[ -z "$value" || -z "$char" ]]; then
-                    (( idx++ ))
-                    continue
-                fi
-                local val_sign=1
-                local abs_value=$value
-                if (( value < 0 )); then
-                    val_sign=-1
-                    abs_value=${value#-}
-                fi
-                if (( abs_value == 0 || val_sign != diff_sign )); then
-                    (( idx++ ))
-                    continue
-                fi
-                local percent=$(/usr/bin/awk -v b="$abs_value" -v total="$diff_abs" 'BEGIN{printf("%.1f", total==0?0:(b*100.0)/total)}')
-                local formatted=$(format_bytes "$abs_value")
-                local bar_len=$(( abs_value * bar_width / diff_abs ))
-                (( bar_len == 0 )) && bar_len=1
-                (( bar_len > bar_width )) && bar_len=$bar_width
-                local bar=$(repeat_char "$char" "$bar_len")
-                local tail=$(repeat_char " " $(( bar_width - bar_len )))
-                if (( use_color )); then
-                    local seg_color=$color_pos
-                    (( diff_sign < 0 )) && seg_color=$color_neg
-                    bar=$(colorize "$bar" "$seg_color")
-                fi
-                local sign_char="+"
-                (( diff_sign < 0 )) && sign_char="-"
-                printf "    [%s] %-18s |%s%s| %s%s (%s bytes, %s%%)\n" "$char" "$label" "$bar" "$tail" "$sign_char" "$formatted" "$abs_value" "$percent"
-                (( idx++ ))
-            done
-            echo
-            echo "    Legend: # shared bytes, M directory metadata, F file rounding, R directory rounding, S special items, ? remainder"
-            echo "            Uppercase letters mark where a component is counted; lowercase shows it is missing from that total."
+        if (( sum_remainder != 0 )); then
+            component_names+=("Sum remainder")
+            col_logical+=(0)
+            col_disk+=(0)
+            col_sum+=("$sum_remainder")
+            sum_explained=$(( sum_explained + sum_remainder ))
+            sum_remainder=0
         fi
 
         echo
-        echo "  Step-by-step (accumulating to logical):"
-        local current=$stat_sum_dedup
-        printf "    %-30s %12s (%s)\n" "Start: Unique" "$(format_bytes "$current")" "$current"
-        local idx_step=1
-        local total_step=${#contrib_labels[@]}
-        while (( idx_step <= total_step )); do
-            local step_label=${contrib_labels[idx_step]}
-            local step_value=${contrib_values[idx_step]}
-            if [[ -z "$step_value" ]]; then
-                step_value=0
-            fi
-            if (( step_value != 0 )); then
-                current=$(( current + step_value ))
-                local step_sign="+"
-                local abs_step=$step_value
-                if (( step_value < 0 )); then
-                    step_sign="-"
-                    abs_step=${step_value#-}
-                fi
-                printf "    %s %-28s %12s (%s)\n" "$step_sign" "$step_label" "$(format_bytes "$current")" "$current"
-            fi
-            (( idx_step++ ))
+        echo "Comparison table (Δ vs unique bytes):"
+        local header_comp=$(repeat_char "-" 24)
+        local header_col=$(repeat_char "-" 26)
+        printf "  %-24s | %-26s | %-26s | %-26s\n" "Component" "$(colorize 'Logical size' "$color_pos")" "$(colorize 'Size on disk' "$color_pos")" "$(colorize 'Sum of files' "$color_pos")"
+        printf "  %-24s-+-%-26s-+-%-26s-+-%-26s\n" "$header_comp" "$header_col" "$header_col" "$header_col"
+
+        local idx=1
+        while (( idx <= ${#component_names[@]} )); do
+            local name=${component_names[idx]}
+            local lval=${col_logical[idx]:-0}
+            local dval=${col_disk[idx]:-0}
+            local sval=${col_sum[idx]:-0}
+            printf "  %-24s | " "$name"
+            format_cell "$lval"; printf " | "
+            format_cell "$dval"; printf " | "
+            format_cell "$sval"; printf "\n"
+            (( idx++ ))
         done
-        printf "    %-30s %12s (%s)\n" "Result: Logical" "$(format_bytes "$du_app_bytes")" "$du_app_bytes"
+
+        printf "  %-24s-+-%-26s-+-%-26s-+-%-26s\n" "$header_comp" "$header_col" "$header_col" "$header_col"
+        printf "  %-24s | " "Total explained"
+        format_cell "$logical_explained"; printf " | "
+        format_cell "$disk_explained"; printf " | "
+        format_cell "$sum_explained"; printf "\n"
+
+        if (( ${#skipped_paths[@]} > 0 )); then
+            echo
+            echo "Paths counted in logical size but skipped during inspection:"
+            for path in "${skipped_paths[@]}"; do
+                printf "  %s\n" "$path"
+            done
+        fi
 
         # Scope interpretation hints
         if [[ -d "$target_path" ]]; then
