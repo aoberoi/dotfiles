@@ -123,21 +123,23 @@ EOF
 
     format_cell() {
         local value="${1:-0}"
+        local color="$color_neutral"
+        local text=""
         if (( value == 0 )); then
-            print -r -- "0B (0)"
-            return
+            text="0B (0)"
+        else
+            local abs=${value#-}
+            local human=$(format_bytes "$abs")
+            [[ -z "$human" ]] && human="${abs}B"
+            local sign="+"
+            color=$color_pos
+            if (( value < 0 )); then
+                sign="-"
+                color=$color_neg
+            fi
+            text="${sign}${human} (${value})"
         fi
-        local abs=${value#-}
-        local human=$(format_bytes "$abs")
-        [[ -z "$human" ]] && human="${abs}B"
-        local sign="+"
-        local color=$color_pos
-        if (( value < 0 )); then
-            sign="-"
-            color=$color_neg
-        fi
-        local text="${sign}${human} (${value})"
-        print -r -- "$text"
+        printf "%s\t%s" "$text" "$color"
     }
 
     stat_value_or_zero() {
@@ -530,15 +532,30 @@ PY
         local -a logical_texts=()
         local -a disk_texts=()
         local -a sum_texts=()
+        local -a logical_colors=()
+        local -a disk_colors=()
+        local -a sum_colors=()
 
         local components_count=${#component_names[@]}
         for ((idx=1; idx<=components_count; idx++)); do
             local name=${component_names[idx]}
             (( ${#name} > comp_width )) && comp_width=${#name}
 
-            local ltext=$(format_cell "${col_logical[idx]:-0}")
-            local dtext=$(format_cell "${col_disk[idx]:-0}")
-            local stext=$(format_cell "${col_sum[idx]:-0}")
+            local lres=$(format_cell "${col_logical[idx]:-0}")
+            local ltext=${lres%%$'\t'*}
+            local lcolor=${lres#*$'\t'}
+
+            local dres=$(format_cell "${col_disk[idx]:-0}")
+            local dtext=${dres%%$'\t'*}
+            local dcolor=${dres#*$'\t'}
+
+            local sres=$(format_cell "${col_sum[idx]:-0}")
+            local stext=${sres%%$'\t'*}
+            local scolor=${sres#*$'\t'}
+
+            logical_colors[idx]="$lcolor"
+            disk_colors[idx]="$dcolor"
+            sum_colors[idx]="$scolor"
             logical_texts[idx]=$ltext
             disk_texts[idx]=$dtext
             sum_texts[idx]=$stext
@@ -548,9 +565,17 @@ PY
             (( ${#stext} > sum_width )) && sum_width=${#stext}
         done
 
-        local delta_logical_text=$(format_cell "$logical_delta")
-        local delta_disk_text=$(format_cell "$disk_delta")
-        local delta_sum_text=$(format_cell "$sum_delta")
+        local delta_logical_res=$(format_cell "$logical_delta")
+        local delta_logical_text=${delta_logical_res%%$'\t'*}
+        local delta_logical_color=${delta_logical_res#*$'\t'}
+
+        local delta_disk_res=$(format_cell "$disk_delta")
+        local delta_disk_text=${delta_disk_res%%$'\t'*}
+        local delta_disk_color=${delta_disk_res#*$'\t'}
+
+        local delta_sum_res=$(format_cell "$sum_delta")
+        local delta_sum_text=${delta_sum_res%%$'\t'*}
+        local delta_sum_color=${delta_sum_res#*$'\t'}
 
         (( ${#delta_logical_text} > logical_width )) && logical_width=${#delta_logical_text}
         (( ${#delta_disk_text} > disk_width )) && disk_width=${#delta_disk_text}
@@ -560,6 +585,23 @@ PY
         local sep_logical=$(repeat_char "-" $logical_width)
         local sep_disk=$(repeat_char "-" $disk_width)
         local sep_sum=$(repeat_char "-" $sum_width)
+
+        pad_and_color() {
+            local text="$1"
+            local width="$2"
+            local color="$3"
+            local pad_width=$(( width - ${#text} ))
+            (( pad_width < 0 )) && pad_width=0
+            local padding=""
+            if (( pad_width > 0 )); then
+                padding=$(repeat_char " " "$pad_width")
+            fi
+            if (( use_color )) && [[ -n "$color" ]]; then
+                printf "%s%s%s%s" "$color" "$text" "$color_reset" "$padding"
+            else
+                printf "%s%s" "$text" "$padding"
+            fi
+        }
 
         printf "  %-*s | %-*s | %-*s | %-*s\n" \
             $comp_width "$header_component" \
@@ -571,21 +613,27 @@ PY
             "$sep_component" "$sep_logical" "$sep_disk" "$sep_sum"
 
         for ((idx=1; idx<=components_count; idx++)); do
-            printf "  %-*s | %-*s | %-*s | %-*s\n" \
+            local logical_cell="$(pad_and_color "${logical_texts[idx]}" $logical_width "${logical_colors[idx]}")"
+            local disk_cell="$(pad_and_color "${disk_texts[idx]}" $disk_width "${disk_colors[idx]}")"
+            local sum_cell="$(pad_and_color "${sum_texts[idx]}" $sum_width "${sum_colors[idx]}")"
+            printf "  %-*s | %s | %s | %s\n" \
                 $comp_width "${component_names[idx]}" \
-                $logical_width "${logical_texts[idx]}" \
-                $disk_width "${disk_texts[idx]}" \
-                $sum_width "${sum_texts[idx]}"
+                "$logical_cell" \
+                "$disk_cell" \
+                "$sum_cell"
         done
 
         printf "  %s-+-%s-+-%s-+-%s\n" \
             "$sep_component" "$sep_logical" "$sep_disk" "$sep_sum"
 
-        printf "  %-*s | %-*s | %-*s | %-*s\n" \
+        local delta_logical_cell="$(pad_and_color "$delta_logical_text" $logical_width "$delta_logical_color")"
+        local delta_disk_cell="$(pad_and_color "$delta_disk_text" $disk_width "$delta_disk_color")"
+        local delta_sum_cell="$(pad_and_color "$delta_sum_text" $sum_width "$delta_sum_color")"
+        printf "  %-*s | %s | %s | %s\n" \
             $comp_width "Delta vs unique bytes" \
-            $logical_width "$delta_logical_text" \
-            $disk_width "$delta_disk_text" \
-            $sum_width "$delta_sum_text"
+            "$delta_logical_cell" \
+            "$delta_disk_cell" \
+            "$delta_sum_cell"
 
         if (( ${#skipped_paths[@]} > 0 )); then
             echo
