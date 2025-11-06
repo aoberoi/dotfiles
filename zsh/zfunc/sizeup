@@ -9,16 +9,20 @@ Display the logical size and size on disk of a file or directory. When
 Options:
     -h, --help    Show this help message
     --sum         Include a logical size calculated by summing file sizes
+                  (can be slow for large trees)
     --explain     Print diagnostics explaining differences in measurements
+                  (implies --sum because the explanation needs per-file data)
 
-The logical size shows the full, uncompressed size of the data stored in the
-file or directory. The size on disk shows how much physical disk space is
-actually being used, which is typically what you want when investigating disk
-space usage. On macOS, this figure is rounded up to 512-byte allocation blocks,
-so small files may appear larger on disk than their logical size, and
-directories may include metadata overhead. Compression, sparse files, or other
-filesystem optimizations can also make the size on disk smaller than the
-logical size.
+Measures explained:
+    • Logical size: what the filesystem reports for the folder’s contents.
+    • Size on disk: physical blocks allocated (rounded to 512-byte blocks).
+    • Logical size (sum of files): direct sum of regular file sizes.
+    • Unique file bytes (dedup): logical size minus duplicate hard links.
+
+On macOS the on-disk figure is rounded up to 512-byte allocation blocks, so
+small files may appear larger on disk than their logical size, and directories
+may include metadata overhead. Compression, sparse files, or other filesystem
+optimizations can also make the size on disk smaller than the logical size.
 
 When using --explain, any remaining “Unreadable / other” bytes usually come
 from content the script cannot stat directly (e.g., protected directories,
@@ -47,6 +51,17 @@ EOF
         humanize_available=1
     fi
 
+    if (( ! humanize_available )); then
+        local maybe_dir=${${(%):-%N}:h}
+        local humanize_path="$maybe_dir/humanize_bytes"
+        if [[ -f "$humanize_path" ]]; then
+            autoload -Uz humanize_bytes 2>/dev/null || source "$humanize_path" 2>/dev/null
+            if command -v humanize_bytes >/dev/null 2>&1; then
+                humanize_available=1
+            fi
+        fi
+    fi
+
     local use_color=0
     local color_reset=""
     local color_pos=""
@@ -67,20 +82,11 @@ EOF
     format_size_line() {
         local label="$1"
         local bytes="$2"
-        local human=""
-
         if [[ -z "$bytes" ]]; then
             bytes=0
         fi
 
-        if (( humanize_available )); then
-            human=$(humanize_bytes "$bytes" 2>/dev/null)
-        fi
-
-        if [[ -z "$human" ]]; then
-            human="${bytes}B"
-        fi
-
+        local human=$(format_bytes "$bytes")
         printf "%-28s %s (%s)\n" "${label}:" "$human" "$bytes"
     }
 
@@ -117,23 +123,21 @@ EOF
 
     format_cell() {
         local value="${1:-0}"
+        if (( value == 0 )); then
+            print -r -- "0B (0)"
+            return
+        fi
         local abs=${value#-}
         local human=$(format_bytes "$abs")
-        local text
-        local color=""
-        if (( value > 0 )); then
-            text="+${human} (${value})"
-            color=$color_pos
-        elif (( value < 0 )); then
-            text="-${human} (${value})"
+        [[ -z "$human" ]] && human="${abs}B"
+        local sign="+"
+        local color=$color_pos
+        if (( value < 0 )); then
+            sign="-"
             color=$color_neg
-        else
-            text="0B (0)"
         fi
-        if (( use_color )) && (( value != 0 )); then
-            text=$(colorize "$text" "$color")
-        fi
-        printf "%-26s" "$text"
+        local text="${sign}${human} (${value})"
+        print -r -- "$text"
     }
 
     stat_value_or_zero() {
@@ -231,6 +235,9 @@ EOF
                 ;;
             --explain)
                 explain_flag=1
+                if (( ! sum_flag )); then
+                    sum_flag=1
+                fi
                 shift
                 ;;
             --)
@@ -327,86 +334,51 @@ EOF
 
         local -a skipped_paths=()
 
-        if [[ -d "$target_path" ]] && command -v python3 >/dev/null 2>&1; then
-            local stats_output
-            if stats_output=$(TARGET_PATH="$target_path" python3 - <<'PY'
-import os, stat
+        local script_source=""
+        if (( ${#funcsourcetrace[@]} > 0 )); then
+            script_source=${funcsourcetrace[1]%:*}
+        fi
+        local sizeup_dir=${script_source:h}
+        [[ -z "$sizeup_dir" || ! -d "$sizeup_dir" ]] && sizeup_dir=$(pwd)
+        local helper_path="$sizeup_dir/_sizeup_scan.py"
 
-root = os.environ.get("TARGET_PATH")
-if not root:
-    print(0, 0, 0, 0, 0, 0, 0, 0)
-    raise SystemExit
-
-file_round512 = 0
-file_round_alloc = 0
-dir_size = 0
-dir_round512 = 0
-dir_alloc = 0
-special_size = 0
-special_alloc = 0
-
-seen = set()
-skipped = []
-
-def round512(value):
-    return ((value + 511) // 512) * 512
-
-for dirpath, dirnames, filenames in os.walk(root, followlinks=False, onerror=lambda e: skipped.append(e.filename if getattr(e, "filename", None) else str(e))):
-    try:
-        st_dir = os.lstat(dirpath)
-    except (FileNotFoundError, PermissionError, OSError):
-        skipped.append(dirpath)
-        continue
-    size = st_dir.st_size
-    alloc = st_dir.st_blocks * 512
-    dir_size += size
-    dir_alloc += alloc
-    dir_round512 += max(round512(size) - size, 0)
-
-    for name in filenames:
-        path = os.path.join(dirpath, name)
-        try:
-            st = os.lstat(path)
-        except (FileNotFoundError, PermissionError, OSError):
-            skipped.append(path)
-            continue
-        mode = st.st_mode
-        if stat.S_ISREG(mode):
-            key = (st.st_dev, st.st_ino)
-            if key in seen:
-                continue
-            seen.add(key)
-            size = st.st_size
-            alloc = st.st_blocks * 512
-            file_round512 += max(round512(size) - size, 0)
-            file_round_alloc += max(alloc - size, 0)
-        elif stat.S_ISLNK(mode) or stat.S_ISCHR(mode) or stat.S_ISBLK(mode) or stat.S_ISFIFO(mode) or stat.S_ISSOCK(mode):
-            size = st.st_size
-            alloc = st.st_blocks * 512
-            special_size += size
-            special_alloc += alloc
-
-print(file_round512, file_round_alloc, dir_size, dir_round512, dir_alloc, special_size, special_alloc)
-for path in skipped:
-    print("SKIP:" + path)
+        if [[ -d "$target_path" ]] && command -v python3 >/dev/null 2>&1 && [[ -f "$helper_path" ]]; then
+            local stats_json
+            stats_json=$(python3 "$helper_path" "$target_path" 2>/dev/null)
+            if [[ -n "$stats_json" ]]; then
+                local parsed
+                parsed=$(SIZEUP_JSON="$stats_json" python3 - <<'PY'
+import json, os
+data = json.loads(os.environ.get("SIZEUP_JSON", "{}"))
+keys = (
+    "file_rounding_bytes",
+    "file_round_alloc_bytes",
+    "dir_bytes",
+    "dir_rounding_bytes",
+    "dir_alloc_bytes",
+    "special_total",
+    "special_alloc_bytes",
+)
+for key in keys:
+    print(f"{key}={data.get(key, 0)}")
+for path in data.get("skipped_paths", []):
+    print(f"SKIP={path}")
 PY
-) ; then
-            if [[ -n "$stats_output" ]]; then
-                local summary_line
-                summary_line=$(printf '%s\n' "$stats_output" | /usr/bin/head -n1)
-                read -r file_rounding_bytes file_round_alloc_bytes dir_bytes dir_rounding_bytes dir_alloc_bytes special_total special_alloc_bytes <<< "$summary_line"
-
-                local rest
-                rest=$(printf '%s\n' "$stats_output" | /usr/bin/tail -n +2)
-                if [[ -n "$rest" ]]; then
-                    while IFS= read -r line; do
-                        [[ -z "$line" ]] && continue
-                        if [[ "$line" == SKIP:* ]]; then
-                            skipped_paths+=("${line#SKIP:}")
-                        fi
-                    done <<< "$rest"
+)
+                if [[ -n "$parsed" ]]; then
+                    while IFS='=' read -r key value; do
+                        case "$key" in
+                            file_rounding_bytes) file_rounding_bytes="$value" ;;
+                            file_round_alloc_bytes) file_round_alloc_bytes="$value" ;;
+                            dir_bytes) dir_bytes="$value" ;;
+                            dir_rounding_bytes) dir_rounding_bytes="$value" ;;
+                            dir_alloc_bytes) dir_alloc_bytes="$value" ;;
+                            special_total) special_total="$value" ;;
+                            special_alloc_bytes) special_alloc_bytes="$value" ;;
+                            SKIP) skipped_paths+=("$value") ;;
+                        esac
+                    done <<< "$parsed"
                 fi
-            fi
             fi
         elif [[ -f "$target_path" || -L "$target_path" ]]; then
             local file_size=$(file_logical_bytes "$target_path")
@@ -429,7 +401,7 @@ PY
             find_errors=$( (/usr/bin/find "$target_path" -type f -exec /usr/bin/stat -f %z {} +) 2>&1 | /usr/bin/grep -i 'stat:' || true)
         fi
 
-        # Compute deltas and bucketization
+        # Compute deltas and prepare for table output
         dir_bytes=${dir_bytes:-0}
         dir_rounding_bytes=${dir_rounding_bytes:-0}
         dir_alloc_bytes=${dir_alloc_bytes:-0}
@@ -438,99 +410,10 @@ PY
         special_total=${special_total:-0}
         special_alloc_bytes=${special_alloc_bytes:-0}
 
-        local bridge_total=$(( du_app_bytes - stat_sum_dedup ))
-        local delta=$(( stat_sum_dedup - du_app_bytes ))
         local hl_savings=$(( stat_sum_nodedup - stat_sum_dedup ))
-
-        local dir_contrib=$dir_bytes
-        local special_contrib=$special_total
-        local file_round_contrib=$file_rounding_bytes
-        local dir_round_contrib=$dir_rounding_bytes
-
-        # Helper to print bucket line with percent of delta
-        _print_bucket() {
-            local label="$1"; local bytes="$2"
-            local base_abs=${bridge_total#-}
-            local pct="0.0"
-            if (( base_abs != 0 )); then
-                pct=$(/usr/bin/awk -v b="$bytes" -v base="$base_abs" 'BEGIN{printf("%.1f", base==0?0:(b*100.0)/base)}')
-            fi
-            local abs_bytes="$bytes"
-            local sign=""
-            local color=""
-            if [[ "$bytes" == -* ]]; then
-                sign="-"
-                abs_bytes=${bytes#-}
-                color=$color_neg
-            elif [[ "$bytes" == "0" ]]; then
-                abs_bytes=0
-                sign=" "
-                color=$color_neutral
-            else
-                sign="+"
-                color=$color_pos
-            fi
-            local human_bytes
-            if (( humanize_available )); then
-                human_bytes=$(humanize_bytes "$abs_bytes" 2>/dev/null)
-            fi
-            if [[ -z "$human_bytes" ]]; then
-                human_bytes="${abs_bytes}B"
-            fi
-            local display="${sign}${human_bytes}"
-            if [[ "$sign" == " " ]]; then
-                display="0B"
-            fi
-            if (( use_color )) && [[ "$sign" != " " ]]; then
-                display=$(colorize "$display" "$color")
-            fi
-            printf "  %-24s %12s (%s bytes)  %6s%%\n" "$label:" "$display" "$bytes" "$pct"
-        }
-
-        # Summary line
-        local delta_abs="$delta"
-        if [[ "$delta" == -* ]]; then
-            delta_abs=${delta#-}
-        fi
-        local delta_human
-        if command -v humanize_bytes >/dev/null 2>&1; then
-            delta_human=$(humanize_bytes "$delta_abs" 2>/dev/null)
-        else
-            delta_human="${delta_abs}B"
-        fi
-        if (( delta > 0 )); then
-            echo "Summary: Unique file bytes (dedup) are +${delta_human} ($delta bytes) vs logical size."
-        elif (( delta < 0 )); then
-            echo "Summary: Unique file bytes (dedup) are -${delta_human} ($delta bytes) vs logical size."
-        else
-            echo "Summary: Unique file bytes (dedup) match logical size."
-        fi
-
-        local raw_delta=$(( stat_sum_nodedup - du_app_bytes ))
-        if (( raw_delta != delta )); then
-            local raw_abs="$raw_delta"
-            if [[ "$raw_delta" == -* ]]; then
-                raw_abs=${raw_delta#-}
-            fi
-            local raw_human
-            if command -v humanize_bytes >/dev/null 2>&1; then
-                raw_human=$(humanize_bytes "$raw_abs" 2>/dev/null)
-            else
-                raw_human="${raw_abs}B"
-            fi
-            if (( raw_delta > 0 )); then
-                echo "  Including duplicate hard links, sum of file entries is +${raw_human} ($raw_delta bytes) vs logical size."
-            elif (( raw_delta < 0 )); then
-                echo "  Including duplicate hard links, sum of file entries is -${raw_human} ($raw_delta bytes) vs logical size."
-            fi
-        fi
-
-        echo
-        echo "Breakdown (unique vs logical):"
-        _print_bucket "Missing directory metadata" "$dir_contrib"
-        _print_bucket "512B rounding (files)" "$file_round_contrib"
-        _print_bucket "512B rounding (directories)" "$dir_round_contrib"
-        _print_bucket "Missing special items" "$special_contrib"
+        local logical_delta=$(( du_app_bytes - stat_sum_dedup ))
+        local disk_delta=$(( disk_bytes - stat_sum_dedup ))
+        local sum_delta=$(( stat_sum_nodedup - stat_sum_dedup ))
 
         # Scope diagnostics: symlinks and mount boundaries
         local stat_sum_follow=0
@@ -547,26 +430,6 @@ PY
                 du_x_blocks=$(/usr/bin/du -x -sA "$target_path" | /usr/bin/awk '{print $1}')
                 du_app_x=$(( du_x_blocks * DU_BLOCK_SIZE ))
             fi
-        fi
-
-        # Remainder bucket
-        local explained=$(( dir_contrib + file_round_contrib + dir_round_contrib + special_contrib ))
-        local remainder=$(( bridge_total - explained ))
-        if (( remainder != 0 )); then
-            _print_bucket "Remaining difference" "$remainder"
-        fi
-
-        if (( hl_savings != 0 )); then
-            local hl_human="$hl_savings"
-            if command -v humanize_bytes >/dev/null 2>&1; then
-                hl_human=$(humanize_bytes "$hl_savings" 2>/dev/null)
-            fi
-            local hl_display="+$hl_human"
-            if (( use_color )); then
-                hl_display=$(colorize "$hl_display" "$color_pos")
-            fi
-            echo
-            echo "Hard-link duplicates removed when deduping: $hl_display ($hl_savings bytes)"
         fi
 
         # Prepare table values
@@ -653,29 +516,76 @@ PY
 
         echo
         echo "Comparison table (Δ vs unique bytes):"
-        local header_comp=$(repeat_char "-" 24)
-        local header_col=$(repeat_char "-" 26)
-        printf "  %-24s | %-26s | %-26s | %-26s\n" "Component" "$(colorize 'Logical size' "$color_pos")" "$(colorize 'Size on disk' "$color_pos")" "$(colorize 'Sum of files' "$color_pos")"
-        printf "  %-24s-+-%-26s-+-%-26s-+-%-26s\n" "$header_comp" "$header_col" "$header_col" "$header_col"
 
-        local idx=1
-        while (( idx <= ${#component_names[@]} )); do
+        local header_component="Component"
+        local header_logical="Logical size"
+        local header_disk="Size on disk"
+        local header_sum="Sum of files"
+
+        local comp_width=${#header_component}
+        local logical_width=${#header_logical}
+        local disk_width=${#header_disk}
+        local sum_width=${#header_sum}
+
+        local -a logical_texts=()
+        local -a disk_texts=()
+        local -a sum_texts=()
+
+        local components_count=${#component_names[@]}
+        for ((idx=1; idx<=components_count; idx++)); do
             local name=${component_names[idx]}
-            local lval=${col_logical[idx]:-0}
-            local dval=${col_disk[idx]:-0}
-            local sval=${col_sum[idx]:-0}
-            printf "  %-24s | " "$name"
-            format_cell "$lval"; printf " | "
-            format_cell "$dval"; printf " | "
-            format_cell "$sval"; printf "\n"
-            (( idx++ ))
+            (( ${#name} > comp_width )) && comp_width=${#name}
+
+            local ltext=$(format_cell "${col_logical[idx]:-0}")
+            local dtext=$(format_cell "${col_disk[idx]:-0}")
+            local stext=$(format_cell "${col_sum[idx]:-0}")
+            logical_texts[idx]=$ltext
+            disk_texts[idx]=$dtext
+            sum_texts[idx]=$stext
+
+            (( ${#ltext} > logical_width )) && logical_width=${#ltext}
+            (( ${#dtext} > disk_width )) && disk_width=${#dtext}
+            (( ${#stext} > sum_width )) && sum_width=${#stext}
         done
 
-        printf "  %-24s-+-%-26s-+-%-26s-+-%-26s\n" "$header_comp" "$header_col" "$header_col" "$header_col"
-        printf "  %-24s | " "Total explained"
-        format_cell "$logical_explained"; printf " | "
-        format_cell "$disk_explained"; printf " | "
-        format_cell "$sum_explained"; printf "\n"
+        local delta_logical_text=$(format_cell "$logical_delta")
+        local delta_disk_text=$(format_cell "$disk_delta")
+        local delta_sum_text=$(format_cell "$sum_delta")
+
+        (( ${#delta_logical_text} > logical_width )) && logical_width=${#delta_logical_text}
+        (( ${#delta_disk_text} > disk_width )) && disk_width=${#delta_disk_text}
+        (( ${#delta_sum_text} > sum_width )) && sum_width=${#delta_sum_text}
+
+        local sep_component=$(repeat_char "-" $comp_width)
+        local sep_logical=$(repeat_char "-" $logical_width)
+        local sep_disk=$(repeat_char "-" $disk_width)
+        local sep_sum=$(repeat_char "-" $sum_width)
+
+        printf "  %-*s | %-*s | %-*s | %-*s\n" \
+            $comp_width "$header_component" \
+            $logical_width "$header_logical" \
+            $disk_width "$header_disk" \
+            $sum_width "$header_sum"
+
+        printf "  %s-+-%s-+-%s-+-%s\n" \
+            "$sep_component" "$sep_logical" "$sep_disk" "$sep_sum"
+
+        for ((idx=1; idx<=components_count; idx++)); do
+            printf "  %-*s | %-*s | %-*s | %-*s\n" \
+                $comp_width "${component_names[idx]}" \
+                $logical_width "${logical_texts[idx]}" \
+                $disk_width "${disk_texts[idx]}" \
+                $sum_width "${sum_texts[idx]}"
+        done
+
+        printf "  %s-+-%s-+-%s-+-%s\n" \
+            "$sep_component" "$sep_logical" "$sep_disk" "$sep_sum"
+
+        printf "  %-*s | %-*s | %-*s | %-*s\n" \
+            $comp_width "Delta vs unique bytes" \
+            $logical_width "$delta_logical_text" \
+            $disk_width "$delta_disk_text" \
+            $sum_width "$delta_sum_text"
 
         if (( ${#skipped_paths[@]} > 0 )); then
             echo
@@ -691,11 +601,11 @@ PY
             echo "Scope checks:"
             local follow_delta=$(( stat_sum_follow - stat_sum_dedup ))
             if [[ "$follow_delta" != 0 ]]; then
-                _print_bucket "Following symlinks adds" "$follow_delta"
+                printf "  Following symlinks adds: %s (%s bytes)\n" "$(format_bytes "$follow_delta")" "$follow_delta"
             fi
             if [[ -n "$du_app_x" && "$du_app_x" != "$du_app_bytes" ]]; then
                 local xdelta=$(( du_app_bytes - du_app_x ))
-                _print_bucket "Cross-filesystem content" "$xdelta"
+                printf "  Cross-filesystem content: %s (%s bytes)\n" "$(format_bytes "$xdelta")" "$xdelta"
             fi
             if [[ "$follow_delta" == 0 && ( -z "$du_app_x" || "$du_app_x" == "$du_app_bytes" ) ]]; then
                 echo "  No symlink or cross-filesystem scope differences detected."
@@ -724,13 +634,6 @@ PY
             fi
         fi
 
-        # Glossary
-        echo
-        echo "Glossary:"
-        echo "  Logical size: what the system reports for the folder’s content."
-        echo "  Sum of file sizes: add up bytes of regular files only."
-        echo "  Directory metadata: the folders themselves occupy bytes (entries)."
-        echo "  Hard links: multiple names pointing to the same data."
     fi
 
 }
