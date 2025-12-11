@@ -6,6 +6,7 @@
 	editor = vim
 [alias]
 	lol = log --decorate --oneline --graph
+	cl = !git_blobless_clone
 [init]
 	defaultBranch = main
 [credential "https://invent.kde.org"]

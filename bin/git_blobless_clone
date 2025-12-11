@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Attempt a blobless clone, falling back to a helpful error message if unsupported
+# This style of clone can save a significant amount of disk space. It is supported by Github.
+# See: https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
+
+git_blobless_clone() {
+  # Inform the user that a blobless clone is being attempted
+  echo 'Blobless clone:' >&2
+
+  # Attempt the blobless clone with all passed arguments
+  git clone --filter=blob:none "$@" || {
+    # If the clone fails, extract the repository URL from the arguments
+    # (first non-flag argument) to include in the error message
+    local url=""
+    for arg in "$@"; do
+      case "$arg" in
+        # Skip flag arguments (those starting with -)
+        -*) ;;
+        # First non-flag argument is the repository URL
+        *)
+          url="$arg"
+          break
+          ;;
+      esac
+    done
+
+    # Display a helpful error message to the user
+    echo "Blobless clone isn't supported for ${url:-the repository}, try a regular clone instead" >&2
+
+    # Return failure status
+    return 1
+  }
+}
+
+# Invoke the function with all passed arguments
+git_blobless_clone "$@"

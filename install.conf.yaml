@@ -51,6 +51,14 @@
     # Create a "permalink" to the working copy of this repo, so other scripts can easily find the path
     ~/.dotfiles: ""
 
+    # Directory for executable scripts. Uses glob: true because the source directory ~/.local/bin
+    # very likely contains scripts or files that don't originate from this repo. This functions
+    # more like a "merge" instead of symlinking the whole directory.
+    ~/.local/bin/:
+      create: true
+      glob: true
+      path: bin/*
+
 # Create empty directories
 # - create:
 #     - ~/downloads
@@ -60,6 +68,7 @@
 - shell:
   # Checks out the commit stored in the submodule repo, into the working directory
   - [git submodule update --init --recursive, Installing submodules]
+  # Sets macOS defaults
   -
     command: ~/.dotfiles/script/macos.sh
     description: Setting macOS defaults

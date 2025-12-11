@@ -5,6 +5,10 @@
 # Homebrew initialization (prepends to $PATH)
 eval "$(/opt/homebrew/bin/brew shellenv)"
 
+# User-specific bin directory
+# Used by uv
+export PATH="/Users/ankur/.local/bin:$PATH"
+
 # Go initialization
 export GOPATH=~/Developer/go
 export PATH=$PATH:$(go env GOPATH)/bin
