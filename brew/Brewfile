@@ -54,6 +54,9 @@ brew "rustup"
 # We can use the go@{version} notation if we care about a fixed version.
 brew "go"
 
+# Swift open source toolchain manager
+brew "swiftly"
+
 # Exiftool - used by digiKam and RawTherapee (photography workflow)
 brew "exiftool"
 
@@ -70,4 +73,8 @@ cask "kap"
 # Keyboard and mouse sharing
 tap "deskflow/homebrew-tap"
   cask "deskflow"
+
+# AI
+brew "claude-code"
+brew "anomalyco/tap/opencode"
 

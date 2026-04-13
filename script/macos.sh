@@ -14,8 +14,8 @@ defaults write -g ApplePressAndHoldEnabled -bool false
 
 # Keyboard repeat rate
 # https://mac-os-key-repeat.vercel.app/
-defaults write NSGlobalDomain KeyRepeat -int 2
-defaults write NSGlobalDomain InitialKeyRepeat -int 12
+defaults write NSGlobalDomain KeyRepeat -int 3
+defaults write NSGlobalDomain InitialKeyRepeat -int 16
 
 # Disable automatic period substitution as it’s annoying when typing code
 defaults write NSGlobalDomain NSAutomaticPeriodSubstitutionEnabled -bool false
@@ -30,5 +30,11 @@ defaults write NSGlobalDomain NSNavPanelExpandedStateForSaveMode2 -bool true
 # Show App Switcher (Cmd+Tab) on all displays. The default only shows the it on the display with the Dock, but when I
 # use an external display I often leave the Dock on the laptop display.
 defaults write com.apple.dock appswitcher-all-displays -bool true
+# Reload Settings that were applied programatically
+/System/Library/PrivateFrameworks/SystemAdministration.framework/Resources/activateSettings -u
+
+# Restart the Dock (which manages Spaces) to apply changes
+killall Dock
+
 
 echo "Log out and log back in for macOS settings to take effect."

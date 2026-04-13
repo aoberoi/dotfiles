@@ -147,7 +147,9 @@ antidote load ${HOME}/.dotfiles/zsh/zsh_plugins
 # 1Password CLI completions
 # Unlike the homebrew completions, this eval must take place after compinit is called (in the Antidote zsh plugins)
 #
-eval "$(op completion zsh)"; compdef _op op
+if [[ -t  1 ]] && command -v op &>/dev/null; then
+  eval "$(op completion zsh)"; compdef _op op
+fi
 
 # Completion support for alias man="batman"
 compdef _man batman
