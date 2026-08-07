@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# Installs Homebrew packages from the three-layer Brewfile stack (D3), in order:
+#   base -> role overlay -> machine overlay
+# Later layers add to earlier ones; they never remove.
+#
+# The `after_` prefix matters. chezmoi must have written the Brewfiles out to
+# ~/.config/homebrew/ before brew can read them, so this has to run after the
+# file-writing phase, not before it.
+set -euo pipefail
+{{- $roleFile    := printf "dot_config/homebrew/Brewfile.role-%s"    .role }}
+{{- $machineFile := printf "dot_config/homebrew/Brewfile.machine-%s" .machine }}
+
+# `run_onchange_` decides whether to re-run by hashing the *rendered* script, and
+# this body never changes on its own. Embedding each layer's content hash makes the
+# rendered script differ -- and so the install re-run -- whenever any Brewfile
+# changes. `include` resolves relative to the source directory; `sha256sum` is from
+# sprig. Each optional layer is guarded by `stat` on the SOURCE path so a role or
+# machine with no overlay skips its hash line instead of failing to render.
+# base hash: {{ include "dot_config/homebrew/Brewfile" | sha256sum }}
+{{- if stat (joinPath .chezmoi.sourceDir $roleFile) }}
+# role hash: {{ include $roleFile | sha256sum }}
+{{- end }}
+{{- if stat (joinPath .chezmoi.sourceDir $machineFile) }}
+# machine hash: {{ include $machineFile | sha256sum }}
+{{- end }}
+
+# chezmoi runs scripts with a minimal environment, so brew is not necessarily on
+# PATH yet -- especially on a fresh machine right after the bootstrap script
+# installed it.
+eval "$(/opt/homebrew/bin/brew shellenv)"
+
+# D8: this script must NEVER run `brew trust`. Trusting a third-party tap grants it
+# the ability to run arbitrary install code, so it stays a deliberate, manual,
+# per-machine act and ~/.homebrew/trust.json is not repo-managed. The visible cost
+# on a machine where a tap has not been trusted is that `brew bundle` prints a
+# warning for that formula and skips its outdatedness check -- it still installs.
+# The README lists the `brew trust --formula ...` commands to run by hand.
+
+# --no-upgrade is set explicitly rather than relying on a default. Verified against
+# Homebrew 6.0.15, whose `brew bundle install --help` states: "Install and upgrade
+# (by default) all dependencies from the Brewfile" and describes --no-upgrade as
+# "Do not run brew upgrade on outdated dependencies." So a bare `brew bundle
+# install` mass-upgrades everything outdated -- exactly the surprise the old dotbot
+# `./install` was criticised for. Applying dotfiles should converge the *declared
+# set*, not silently move every package's version, so upgrading stays a separate
+# deliberate act:
+#     brew bundle upgrade --file="${HOME}/.config/homebrew/Brewfile"   # or: brew upgrade
+# Homebrew's own caveat applies: a package may still be upgraded by `brew install`
+# if a newly installed dependency requires it.
+bundle_layer() {
+	local label="$1" file="$2"
+	echo "==> Homebrew: ${label}"
+	brew bundle install --no-upgrade --file="${file}"
+}
+
+bundle_layer "base" "${HOME}/.config/homebrew/Brewfile"
+{{ if stat (joinPath .chezmoi.sourceDir $roleFile) }}
+bundle_layer "role overlay ({{ .role }})" "${HOME}/.config/homebrew/Brewfile.role-{{ .role }}"
+{{- end }}
+{{ if stat (joinPath .chezmoi.sourceDir $machineFile) }}
+bundle_layer "machine overlay ({{ .machine }})" "${HOME}/.config/homebrew/Brewfile.machine-{{ .machine }}"
+{{- end }}

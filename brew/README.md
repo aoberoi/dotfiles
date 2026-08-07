@@ -8,10 +8,30 @@ Set up essential packages from the Homebrew package manager.
   ask for the system password. You should type it in and choose 'Always Allow' so it doesn't prompt
   every time.
 
-* Rust requires running `rustup-init --no-modify-path` after the installation is complete. The
-  rustup completions script for zsh, which was initially generated from `rustup completions zsh`,
-  are checked into this repo. Therefore, if rustup's CLI significantly changes, I may need to update
-  the contents of `zsh/zfunc/_rustup` with the latest output of that command.
+* Rust needs two things after the formula is installed, and neither is what this file used to say.
+
+  The formula **no longer ships `rustup-init`** — it states so in its own caveat. Instead, put
+  `$(brew --prefix rustup)/bin` on `$PATH`; that directory holds the `cargo`, `rustc` and `rustfmt`
+  shims, and without it none of them resolve even though rustup itself is installed. `zsh/zprofile`
+  now does this.
+
+  Then install an actual toolchain — the formula does not bring one:
+
+  ```
+  $ rustup toolchain install stable
+  ```
+
+  `rustup default` may already report `stable-…` before you do this; that is only a recorded
+  preference, not an installed toolchain. Check with `rustup toolchain list`.
+
+  Completions need no maintenance. Homebrew installs `_rustup` into
+  `$(brew --prefix)/share/zsh/site-functions`, which `zsh/zshrc` already puts on `FPATH`, so it
+  tracks `brew upgrade rustup` automatically. The copy that used to be checked in at
+  `zsh/zfunc/_rustup` was deleted: because `~/.zfunc` is prepended to `fpath` *after* Homebrew's
+  site-functions, that stale copy was actively shadowing the current one.
+
+  Cargo completions are a separate matter and are not set up — see R2 in
+  [the migration runbook](../runbooks/chezmoi-migration-plan.md).
 
 * The 1Password CLI installation requires inputting the admin password. After this completes, follow
   the [instructions to sign in](https://developer.1password.com/docs/cli/get-started#sign-in).
