@@ -1,0 +1,20 @@
+# Reference: https://github.com/Homebrew/homebrew-bundle
+#
+# ROLE LAYER: work
+#
+# Applied on every machine whose role is "work" (D3, three-layer model:
+# base -> role -> machine). Deploys to ~/.config/homebrew/Brewfile.role-work only
+# on those machines — .chezmoiignore filters out every non-matching role layer.
+#
+# These are employer tooling rather than properties of any one laptop, so a second
+# CZI machine picks them up automatically. Anything genuinely tied to a specific
+# machine's hardware belongs in that machine's layer instead.
+
+# CZI-specific tooling
+tap "chanzuckerberg/tap"
+brew "chanzuckerberg/tap/argus"
+brew "chanzuckerberg/tap/aws-oidc"
+
+# Cloud tooling — work-driven, not wanted on a fresh personal Mac
+brew "awscli"
+brew "kubernetes-cli"

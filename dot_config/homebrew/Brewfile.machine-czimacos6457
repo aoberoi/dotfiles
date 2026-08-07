@@ -3,23 +3,13 @@
 # MACHINE LAYER: czimacos6457
 #
 # Applied only on this machine (D3, three-layer model: base -> role -> machine).
-# See runbooks/chezmoi-migration-plan.md.
-#
-# Everything here was found installed but undeclared during the Phase 0.5 audit
-# on 2026-08-06. Classification is "tight base": anything work- or
-# hardware-specific lives in an overlay rather than the base set.
-#
 # Deploys to ~/.config/homebrew/Brewfile.machine-czimacos6457, but only on that
 # machine — .chezmoiignore filters out every non-matching machine layer.
+#
+# Keep this file for things tied to THIS physical machine. Employer tooling that
+# any CZI Mac would want belongs in Brewfile.role-work instead; the CZI and cloud
+# CLIs originally landed here only because the role layer did not exist yet (R3).
 
-# CZI-specific tooling
-tap "chanzuckerberg/tap"
-brew "chanzuckerberg/tap/argus"
-brew "chanzuckerberg/tap/aws-oidc"
-
-# Cloud tooling — work-driven, not wanted on a fresh personal Mac
-brew "awscli"
-brew "kubernetes-cli"
-
-# Brightness/volume control for external displays — hardware-specific
+# Brightness/volume control for external displays — specific to this desk setup,
+# not something every work machine needs.
 cask "monitorcontrol"
