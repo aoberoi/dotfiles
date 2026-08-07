@@ -1,0 +1,29 @@
+#
+# Settings for login shells (not dependant on interactivity)
+#
+
+# Homebrew initialization (prepends to $PATH)
+eval "$(/opt/homebrew/bin/brew shellenv)"
+
+# User-specific bin directory
+# Used by uv
+export PATH="$HOME/.local/bin:$PATH"
+
+# Go initialization
+export GOPATH=~/Developer/go
+export PATH="$PATH:$GOPATH/bin"
+
+# Rust initialization
+# The rustup formula no longer ships `rustup-init`; instead its caveat says to put this directory
+# on the $PATH, which is what makes `cargo` and `rustc` resolve. Written as $HOMEBREW_PREFIX/opt/…
+# (set by `brew shellenv` above) rather than `$(brew --prefix rustup)` so no subshell is spawned on
+# every login. Note that a toolchain still has to be installed separately: `rustup toolchain install stable`.
+[ -d "$HOMEBREW_PREFIX/opt/rustup/bin" ] && export PATH="$PATH:$HOMEBREW_PREFIX/opt/rustup/bin"
+
+# Swiftly initialization
+# Guarded, since swiftly is not set up on every machine
+[ -f ~/.swiftly/env.sh ] && source ~/.swiftly/env.sh
+
+# Added by OrbStack: command-line tools and integration
+# This won't be added again if you remove it.
+source ~/.orbstack/shell/init.zsh 2>/dev/null || :

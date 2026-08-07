@@ -1,0 +1,40 @@
+[user]
+	name = Ankur Oberoi
+	# Per-machine value (D4): prompted at `chezmoi init` and stored in
+	# ~/.config/chezmoi/chezmoi.toml. Work and personal machines commit under
+	# different addresses.
+	email = {{ .email | quote }}
+[core]
+	# No global ignore-file pointer needed: git reads ~/.config/git/ignore natively.
+	editor = vim
+[alias]
+	lol = log --decorate --oneline --graph
+	cl = !git_blobless_clone
+[init]
+	defaultBranch = main
+{{- if eq .role "personal" }}
+# invent.kde.org is a personal account, so this only lands on personal machines.
+[credential "https://invent.kde.org"]
+	provider = generic
+{{- end }}
+[merge]
+	# Set's default for the command `git mergetool` to vscode
+	# To override, use `git mergetool -t vim`
+	tool = vscode
+[mergetool "vscode"]
+	# Use base, local, remote, merged — ensure 'code' is on PATH
+	# The --new-window flag does not always work, but it does sometimes
+	cmd = code --wait --new-window --merge $REMOTE $LOCAL $BASE $MERGED
+[credential]
+	# The empty value resets the helper list, discarding osxkeychain inherited
+	# from the system config so that only GCM below applies. Keep these two lines
+	# in this order.
+	helper =
+	# GCM's cask ships a .pkg that installs to /usr/local even on Apple Silicon;
+	# /opt/homebrew/share/gcm-core does not exist. This path is correct.
+	helper = /usr/local/share/gcm-core/git-credential-manager
+{{- if eq .role "work" }}
+# Azure DevOps is work-only, and GCM needs the path to tell org accounts apart.
+[credential "https://dev.azure.com"]
+	useHttpPath = true
+{{- end }}

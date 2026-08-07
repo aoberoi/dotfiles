@@ -1,0 +1,48 @@
+sizeup () {
+    # Show help message
+    show_help() {
+        cat << EOF
+Usage: sizeup <path>
+Display both the apparent size and size on disk of a file or directory.
+
+Options:
+    -h, --help    Show this help message
+
+The apparent size shows the logical size of the file or directory contents
+(the full, uncompressed size of the data).
+The size on disk shows how much physical disk space is actually being used,
+which is typically what you want when investigating disk space usage. This
+may be smaller than the apparent size due to filesystem compression, sparse
+files, or other storage optimizations.
+
+Examples:
+    sizeup /path/to/file
+    sizeup /path/to/directory
+    sizeup -h
+EOF
+    }
+
+    # Check for help flags or missing arguments
+    if [[ $# -eq 0 ]] || [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+        show_help
+        return 1
+    fi
+
+    local target_path="$1"
+
+    # Check if the path exists
+    if [[ ! -e "$target_path" ]]; then
+        echo "Error: '$target_path' does not exist"
+        return 1
+    fi
+
+    # Get apparent size (uncompressed/logical size)
+    local apparent_size=$(du -shA "$target_path" | cut -f1)
+    echo "Apparent size:    $apparent_size"
+
+    # Get size on disk (actual allocated space, may be smaller due to optimizations)
+    local disk_size=$(du -sh "$target_path" | cut -f1)
+    echo "Size on disk:     $disk_size"
+}
+
+sizeup "$@"
