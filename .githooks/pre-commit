@@ -49,10 +49,15 @@ fi
 
 # gitleaks is in the base Brewfile, but a freshly cloned machine may not have run
 # `brew bundle` yet, so its absence is a soft miss rather than an error.
+#
+# `gitleaks git --staged` is the current spelling. The older `gitleaks protect
+# --staged` still works in 8.30.1 but no longer appears in `gitleaks --help`, so it
+# is on the way out — and if it were removed this layer would fail silently rather
+# than loudly, which is the worst way for a security check to break.
 if command -v gitleaks >/dev/null 2>&1; then
-  if ! gitleaks protect --staged --redact --no-banner >/dev/null 2>&1; then
+  if ! gitleaks git --staged --redact --no-banner . >/dev/null 2>&1; then
     echo "pre-commit: gitleaks flagged the staged changes. Details:" >&2
-    gitleaks protect --staged --redact --no-banner 2>&1 | sed 's/^/    /' >&2
+    gitleaks git --staged --redact --no-banner . 2>&1 | sed 's/^/    /' >&2
     fail=1
   fi
 fi
