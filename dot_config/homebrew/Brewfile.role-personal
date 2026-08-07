@@ -5,9 +5,8 @@
 # Applied on every machine whose role is "personal" (D3, three-layer model:
 # base -> role -> machine). See runbooks/chezmoi-migration-plan.md.
 #
-# These packages were uninstalled from the work Mac czimacos6457 on 2026-08-06.
-# The personal Mac does not exist yet; it gets set up after the work-Mac
-# migration completes. Nothing here is installed locally right now.
+# These packages were moved off the work Mac czimacos6457 on 2026-08-06 and
+# belong on personal machines such as iris.
 #
 # Deploys to ~/.config/homebrew/Brewfile.role-personal, but only on machines whose
 # role is "personal" — .chezmoiignore filters out every non-matching role layer.

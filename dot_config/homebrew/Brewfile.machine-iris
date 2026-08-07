@@ -1,0 +1,16 @@
+# Reference: https://github.com/Homebrew/homebrew-bundle
+#
+# MACHINE LAYER: iris
+#
+# Applied only on this machine (D3, three-layer model: base -> role -> machine).
+# Deploys to ~/.config/homebrew/Brewfile.machine-iris, but only on that machine —
+# .chezmoiignore filters out every non-matching machine layer.
+
+# Native build tooling used for experiments on this Mac.
+brew "cmake"
+
+# Intercepting proxy for inspecting local HTTP and HTTPS traffic.
+cask "mitmproxy"
+
+# Packet capture and protocol analysis for local networking work.
+cask "wireshark-app"

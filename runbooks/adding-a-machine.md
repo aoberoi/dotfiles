@@ -7,8 +7,8 @@ packages belong afterwards.
 runbook is the long version: what each prompt is actually asking, what chezmoi does and deliberately
 does not do, how to add a per-machine Homebrew layer, and how to tell when the machine is done.
 
-The worked example throughout is a **personal** Mac, because that is the next machine to be set up
-and because `role = personal` exercises every branch that the existing work Mac does not.
+The worked example throughout is the **personal** Mac `iris`, because `role = personal` exercises
+every branch that the original work-Mac migration did not.
 
 ---
 
@@ -129,22 +129,25 @@ install time. That is a decision to make consciously, per machine, not something
 confers on your behalf. Trust is recorded in `~/.homebrew/trust.json`, which this repo does not
 manage, and the install script never calls `brew trust`.
 
-The currently-trusted set on the work Mac — read from `brew trust --json v1`, which reports
-`taps: []`, `casks: []` and four formulae:
+Trust is per entry and per kind: a formula trust does not cover a cask from the same tap. The
+commands needed across the current machine roles are:
 
 ```sh
 # base layer — every machine, regardless of role
 brew trust --formula eth-p/software/bat-extras-batman
 brew trust --formula anomalyco/tap/opencode
+brew trust --cask 1password/tap/1password-cli
 
 # role = work only
 brew trust --formula chanzuckerberg/tap/argus
 brew trust --formula chanzuckerberg/tap/aws-oidc
+
+# role = personal only
+brew trust --cask deskflow/tap/deskflow
 ```
 
-On a `role = personal` machine, only the two base-layer lines apply. Nothing in
-`Brewfile.role-personal` needs trust: `makemkv` and `deskflow` are casks, and casks are not subject
-to formula trust.
+On a `role = personal` machine, run the three base-layer commands and the Deskflow command.
+`makemkv` is an official cask and needs no trust entry.
 
 **`man` depends on this.** `dot_zshrc` sets `alias man='batman'`, and `batman` comes from
 `eth-p/software/bat-extras-batman`. On an untrusted machine Homebrew will not load the formula, so
@@ -155,8 +158,8 @@ run, `brew bundle check` also reports the formula as unsatisfied with:
 Warning: Cannot check whether eth-p/software/bat-extras-batman is outdated because its tap is not trusted.
 ```
 
-If a new tapped formula is ever added to a Brewfile, add its `brew trust --formula` line to the
-README's "Trusting taps" section at the same time.
+If a new tapped formula or cask is ever added to a Brewfile, add its matching `brew trust
+--formula` or `brew trust --cask` line to the README's "Trusting taps" section at the same time.
 
 ### 3.2 Sign in to the 1Password CLI
 
@@ -310,7 +313,7 @@ chezmoi diff                    # what an apply would actually change
 | `~/.config/zsh/secrets.zsh` | **not written at all** | rendered `0600` from 1Password |
 | git credential block | `https://invent.kde.org` → `provider = generic` | `https://dev.azure.com` → `useHttpPath = true` |
 | git `user.email` | whatever you answered at init | ditto — this is the canonical demo of why the prompt exists |
-| Taps to trust | the two base-layer formulae only | those two plus the two CZI formulae |
+| Entries to trust | two base formulae + base 1Password cask + personal Deskflow cask | two base formulae + base 1Password cask + two CZI formulae |
 
 **Why there is no secrets file, mechanically.** `dot_config/zsh/private_secrets.zsh.tmpl` is wrapped
 in `{{- if and (eq .role "work") (lookPath "op") -}}`. On a personal machine the condition is false,
@@ -323,8 +326,8 @@ a personal machine, because *managed* means "there is a source entry for it," no
 exist." The scratch apply above confirms nothing is written.
 
 Note also that `Brewfile.role-personal`'s packages are not installed on the work Mac — they were
-removed from it during the migration. That layer has never been exercised on real hardware, so
-expect the personal Mac's first `brew bundle` to be the first genuine test of it.
+removed from it during the migration. Adopting `iris` is the first real-hardware exercise of that
+layer, so validate every entry rather than assuming the simulated matrix covered Homebrew behavior.
 
 ---
 
@@ -348,7 +351,7 @@ chezmoi status          # want: empty
 ### Homebrew
 
 ```sh
-brew trust --json v1                                                     # the formulae from §3.1
+brew trust --json v1                                                     # the entries from §3.1
 brew bundle check --file="$HOME/.config/homebrew/Brewfile"
 brew bundle check --file="$HOME/.config/homebrew/Brewfile.role-<role>"
 brew bundle check --file="$HOME/.config/homebrew/Brewfile.machine-<slug>"   # if the layer exists
