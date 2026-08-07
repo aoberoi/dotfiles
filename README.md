@@ -81,10 +81,15 @@ Some Homebrew packages have caveats and follow-up work of their own; see [`runbo
 
 ## Trusting taps
 
-Homebrew will not load a formula from a non-official tap until that tap has been trusted, and it cannot check whether
-such a formula is outdated. Trust is recorded in `~/.homebrew/trust.json`, which is **deliberately not managed by this
-repo**: trusting a tap authorises it to run arbitrary code at install time, so it stays a conscious, per-machine act
-rather than something a dotfiles clone hands out on your behalf. The install script never calls `brew trust`.
+Homebrew will not load anything from a non-official tap until it has been trusted, and it cannot check whether such an
+entry is outdated. Trust is recorded in `~/.homebrew/trust.json`, which is **deliberately not managed by this repo**:
+trusting a tap authorises it to run arbitrary code at install time, so it stays a conscious, per-machine act rather
+than something a dotfiles clone hands out on your behalf. The install script never calls `brew trust` (D8).
+
+**Casks need trusting too, and they need a different flag.** `brew trust` takes `--formula`, `--cask`, `--command`, or
+a bare tap name for whole-tap trust; `--formula` does *not* cover a cask from the same tap. This is easy to miss,
+because a cask that is already installed keeps working perfectly while untrusted — its binaries are on disk and run
+fine. What you silently lose is upgrade visibility (`brew outdated` skips it) and installability on a fresh Mac.
 
 The cost is that every new Mac needs these run by hand:
 
@@ -92,35 +97,72 @@ The cost is that every new Mac needs these run by hand:
 # base layer — every machine
 brew trust --formula eth-p/software/bat-extras-batman
 brew trust --formula anomalyco/tap/opencode
+brew trust --cask    1password/tap/1password-cli
 
 # role = work
 brew trust --formula chanzuckerberg/tap/argus
 brew trust --formula chanzuckerberg/tap/aws-oidc
+
+# role = personal
+brew trust --cask    deskflow/tap/deskflow
 ```
 
-Nothing is needed for the casks (`1password-cli`, `deskflow`) or for the `role = personal` layer.
+Casks from official taps (`ghostty`, `git-credential-manager`, the fonts, `kap`, `claude-code`, `monitorcontrol`) need
+nothing.
 
 Check the result:
 
 ```sh
 brew trust --json v1                                     # what is currently trusted
+brew doctor                                              # warns per-TAP, see below
 brew bundle check --file="$HOME/.config/homebrew/Brewfile"
 ```
 
-Until the commands above are run, `brew bundle check` prints one warning per untrusted formula and reports it as
-unsatisfied:
+`brew doctor` warns at **tap** granularity, not per entry — a tap disappears from the warning as soon as *one* of its
+entries is trusted:
+
+```
+Warning: The following taps are not trusted:
+  1password/tap
+```
+
+So a green-ish `brew doctor` does not mean every entry in the Brewfiles is trusted. `brew trust --json v1` is the
+authoritative view; check it against the command list above.
+
+Until the commands above are run, `brew bundle check` prints one warning per untrusted entry, and reports it as
+unsatisfied if it is not already installed:
 
 ```
 Warning: Cannot check whether eth-p/software/bat-extras-batman is outdated because its tap is not trusted.
          Run `brew trust --formula eth-p/software/bat-extras-batman` to trust it.
 ```
 
-**`man` is affected.** `dot_zshrc` sets `alias man='batman'`, and `batman` comes from
-`eth-p/software/bat-extras-batman`. On a machine where that formula has not been trusted, `man` is broken. It is the
-first thing you'll notice and the last thing you'll think to blame on Homebrew.
+`brew doctor` says it is *"ignoring formulae, casks and commands from these taps"*, which sounds absolute but is not.
+Per [the Tap Trust docs](https://docs.brew.sh/Tap-Trust), *"an untrusted tap is not loaded … unless you explicitly
+install a fully qualified formula or cask from that tap."* What an untrusted tap loses is **name resolution**, so a
+fully-qualified entry (`brew "eth-p/software/bat-extras-batman"`) still installs untrusted, and only its outdatedness
+check is skipped. Every tapped entry in the Brewfiles is written fully qualified for exactly this reason — don't
+shorten one to its bare token.
 
-If a new tapped formula is ever added to a Brewfile, add its `brew trust --formula` line to this section at the same
-time.
+**Two things break in ways you will not blame on Homebrew:**
+
+* **`man`.** `dot_zshrc` sets `alias man='batman'`, and `batman` comes from `eth-p/software/bat-extras-batman`. On a
+  machine where that formula has not been trusted, `man` is broken.
+* **The whole `chezmoi apply`.** `private_secrets.zsh.tmpl` calls `onepasswordRead`, so a work machine without a
+  working `op` fails the apply outright — and `op` is `1password-cli`, the cask above.
+
+### Leftover taps
+
+Uninstalling a package does not untap its tap, and neither does `brew bundle install` — it only ever adds. So removing
+the last package from a tap leaves the tap behind, where it is inert but shows up in `brew tap` and trips the
+`brew doctor` warning above. Clean up by hand:
+
+```sh
+brew untap <user>/<tap>
+```
+
+If a new tapped formula or cask is ever added to a Brewfile, add its `brew trust --formula` / `--cask` line to the list
+above at the same time.
 
 ## Daily use
 
@@ -152,7 +194,7 @@ exit
 
 **Read this before you go looking for a bug.** This repo uses chezmoi's default *copy* mode: `~/.zshrc` and friends
 are real files, not symlinks into the repo. That is a deliberate choice, but it has one sharp edge, and it is the
-single biggest behavioural difference from the old symlink-based setup.
+single biggest behavioral difference from the old symlink-based setup.
 
 **A program that rewrites its own config writes to the copy, and the next `chezmoi apply` silently reverts it.**
 
@@ -274,7 +316,17 @@ The mechanics:
 Tradeoffs worth knowing: the plaintext sits on disk at `0600` between applies (the shell pays no 1Password cost at
 startup); a value rotated in 1Password does not propagate until the next `chezmoi apply`; and if the vault is locked,
 `onepasswordRead` fails, which aborts the *entire* apply rather than just that file. `onepassword.prompt = false` is
-set so that failure is an immediate legible error instead of a hang.
+set so that failure is a legible error instead of a hang — though not always a fast one. Signed out, `op` errors in
+about a second; if an unlock prompt is raised and left unanswered it waits out its authorization timeout first, so
+`chezmoi` can sit silent for ~90s before reporting. `op` also re-locks on its own after a while, so a long session can
+start erroring mid-way through — unlock and re-run.
+
+**If a chezmoi command hangs instead of erroring, it is not chezmoi.** In a session driven by a remote client, macOS
+app-data consent makes `open()` on 1Password's group container block forever waiting for a dialog on the physical
+console, and `op` — and therefore every chezmoi command — blocks with it. `onepassword.prompt` cannot help; the block
+is below `op`. Confirm with `ls ~/Library/Group\ Containers/2BUA8C4S2C.com.1password`, which hangs the same way. Work
+around it by path-scoping (`chezmoi status ~/.config/homebrew`); fix it by granting the consent at the console or
+giving the client app Full Disk Access. Full detail in [AGENTS.md](AGENTS.md).
 
 A pre-commit hook in `.githooks/` scans staged content for credential-shaped strings — built-in patterns first, then
 `gitleaks` when it is installed, configured by [`.gitleaks.toml`](.gitleaks.toml). It is wired up by

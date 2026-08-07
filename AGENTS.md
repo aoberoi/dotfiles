@@ -234,10 +234,46 @@ apply.
 ### The install-packages script must never run `brew trust` (D8)
 
 Trusting a third-party tap authorises it to run arbitrary install code. That stays a
-deliberate, manual, per-machine act; `~/.homebrew/trust.json` is not repo-managed. On an
-untrusted machine `brew bundle` prints a warning and skips the outdatedness check for that
-formula — it still installs. The README lists the `brew trust --formula …` commands to run by
-hand.
+deliberate, manual, per-machine act; `~/.homebrew/trust.json` is not repo-managed. The README
+lists the `brew trust` commands to run by hand.
+
+**Untrusted still installs — but only for fully-qualified names.** This is the load-bearing
+detail, and `brew doctor`'s wording obscures it. Doctor says *"Homebrew is currently ignoring
+formulae, casks and commands from these taps"*, which sounds absolute. It is not: what an
+untrusted tap loses is **name resolution**, not installability.
+[docs.brew.sh/Tap-Trust](https://docs.brew.sh/Tap-Trust) is explicit —
+
+> An untrusted tap is not loaded when tap trust is required unless you explicitly install a
+> fully qualified formula or cask from that tap.
+
+Homebrew's own source agrees: `Library/Homebrew/bundle/brew.rb` comments that *"fully
+qualified tap formulae can be checked by their Cellar rack name without loading the formula
+from an untrusted tap,"* and its untrusted branch emits `opoo "Cannot check whether … is
+outdated"` then returns early — warn, skip the outdatedness check, proceed.
+
+So in a Brewfile, **always write tapped entries fully qualified**:
+
+```
+brew "eth-p/software/bat-extras-batman"     # resolves untrusted
+cask "1password/tap/1password-cli"          # resolves untrusted
+cask "1password-cli"                        # NEEDS the tap loaded — fails untrusted
+```
+
+An unqualified token cannot even be trusted in advance: both `bundle/brew.rb` and
+`bundle/cask.rb` guard their trust calls with `if … Utils.full_name?(…)`, commented *"only
+fully-qualified names map to a tap, so unqualified tokens cannot be meaningfully trusted."*
+Every tapped entry in this repo is fully qualified; keep it that way.
+
+**Trust is per-kind.** `brew trust` takes `--formula`, `--cask`, `--command`, or a bare tap
+name. `--formula` does not cover a cask from the same tap. An already-installed but untrusted
+cask keeps working — its binaries are on disk — so the only symptom is that `brew outdated`
+silently skips it. That is how `1password-cli` sat untrusted here unnoticed.
+
+**Do not use the Brewfile `trusted:` option.** `tap`, `brew` and `cask` entries accept
+`trusted: true`, which writes the trust entry before installing. It would make the warning go
+away in one line, and adopting it would invert D8 — the point is that a dotfiles clone must
+not hand out trust on your behalf. `brew bundle dump` emits it for already-trusted entries;
+strip it if you ever re-dump.
 
 `--no-upgrade` is also passed explicitly on every layer, deliberately: a bare `brew bundle
 install` upgrades everything outdated. Applying dotfiles should converge the *declared set*;
@@ -287,10 +323,75 @@ Two details that are easy to get wrong:
   fail with "multiple accounts found."
 - `lookPath "op"` proves only that the binary exists, not that the vault is unlocked. If op is
   locked, the read fails and the whole apply fails. `onepassword.prompt = false` in the
-  per-machine config makes that a legible error rather than a hang.
+  per-machine config makes that a legible error rather than a hang. Two shapes of that error,
+  both measured on czimacos6457 2026-08-07:
+
+  | State | Result | Latency |
+  | --- | --- | --- |
+  | signed out | `[ERROR] … account is not signed in`, exit 1 | ~1s |
+  | unlock prompt dismissed or failed | `[ERROR] … response: promptError`, exit 1 | ~1s |
+  | unlock prompt raised, unanswered | `[ERROR] … authorization timeout`, exit 1 | ~90s |
+
+  So "legible rather than a hang" is right, but **not necessarily prompt** — op waits out its
+  own authorization timeout before giving up, and chezmoi sits there the whole time. Do not
+  conclude a command is wedged until you have given it two minutes. Note also that op
+  re-locks on its own, so a long working session can start erroring part-way through; unlock
+  and re-run. **This guarantee covers a locked vault only** — see the next section for a
+  failure mode it cannot save you from.
 
 `private_` must stay on the **filename**. Do not hoist it to a `private_dot_config/`
 directory — two source entries mapping to `~/.config` is a source-state conflict.
+
+### When `chezmoi status` hangs, suspect macOS, not chezmoi
+
+Diagnosed on czimacos6457 2026-08-07. In a session driven by a **remote client**, bare
+`chezmoi status`, `diff` and `apply` can hang forever, printing nothing.
+
+The cause is macOS's app-data consent gate — the *"«App» wants to access data from other
+apps"* dialog. `open()` on a third-party group container under `~/Library/Group Containers/`
+does not fail when consent is missing; it **blocks indefinitely** waiting for a dialog that
+renders on the physical console. `stat` still succeeds, so the directory looks fine.
+
+The chain: `op` reaches 1Password's desktop CLI integration through a socket under
+`2BUA8C4S2C.com.1password/` → blocks in `open()` → `onepasswordRead` never returns → and
+because chezmoi computes target state for the **whole tree** before printing anything, one
+wedged template stalls every command.
+
+`onepassword.prompt = false` cannot help here. It governs only whether chezmoi shells out to
+`op signin`; this block is in the kernel, one layer below `op`.
+
+**Diagnose in one command** — this hangs too, which proves it is not chezmoi:
+
+```sh
+ls ~/Library/Group\ Containers/2BUA8C4S2C.com.1password
+```
+
+Not 1Password-specific: every un-consented third-party team-ID container behaves this way
+(Todoist and WS1 Hub were also confirmed). Apple's `group.com.apple.*` containers do not.
+
+**Work around it** by path-scoping away from the secrets template, which skips the `op` call:
+
+```sh
+chezmoi status ~/.config/homebrew
+chezmoi diff ~/.zshrc
+```
+
+**Fix it** by granting the consent once at the console, or by giving the client app Full Disk
+Access (System Settings → Privacy & Security), which supersedes app-data gating for every
+container. A full `apply` is not available remotely until one of those is done.
+
+Beware when timing this out: macOS ships no `timeout(1)`. For C programs — including the `ls`
+probe above — `perl -e 'alarm 10; exec @ARGV' <cmd>` works, and exit 142 means it hung. It
+does **not** work on `chezmoi` or `op`: both are Go, and the Go runtime handles `SIGALRM`
+itself rather than dying on it, so the alarm is swallowed and you wait the full time anyway.
+For those, background the command and `kill -9` it, then read its output file.
+
+To see what a blocked process is actually waiting on, sample it — this is what identified the
+gate as an `open()` block rather than anything in chezmoi or op:
+
+```sh
+<cmd> & pid=$!; sample $pid 2 -file /tmp/s.txt; kill -9 $pid; grep -E '^ +[0-9]+ ' /tmp/s.txt
+```
 
 ---
 

@@ -75,8 +75,14 @@ brew "fzf"
 brew "tree" # used to preview directories, and a generally useful utility
 
 # 1Password CLI
+# Fully qualified on purpose (D8). An untrusted tap is not *loaded*, so a bare
+# `cask "1password-cli"` cannot be resolved on a machine that has not run
+# `brew trust --cask 1password/tap/1password-cli`; the qualified form installs
+# anyway and only loses its outdatedness check. This one matters more than the
+# rest: private_secrets.zsh.tmpl calls onepasswordRead, so a work machine with no
+# `op` fails the whole apply. Trusted on czimacos6457 on 2026-08-07.
 tap "1Password/tap"
-  cask "1password-cli"
+  cask "1password/tap/1password-cli"
 
 # fnm - Fast Node Manager (replacement for nvm)
 brew "fnm"
