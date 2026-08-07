@@ -1,0 +1,37 @@
+# gitleaks configuration for this repo.
+#
+# Picked up automatically: gitleaks looks for .gitleaks.toml in the directory being
+# scanned, which is the repo root for both `.githooks/pre-commit` and a manual
+# `gitleaks git .` history sweep.
+#
+# WHY THIS EXISTS
+#
+# The default ruleset catches a key of this shape, but only
+# by luck of naming. Measured against a synthetic key of the same shape:
+#
+#   export KG_API_KEY=sk_prod_<uuid>_<64 chars>   -> caught  (generic-api-key)
+#   api_key = "sk_prod_<uuid>_<64 chars>"         -> caught  (generic-api-key)
+#   FOO=sk_prod_<uuid>_<64 chars>                 -> MISSED
+#
+# generic-api-key needs a nearby keyword such as `api_key`, `token` or `secret`
+# before its entropy check runs. Rename the variable to something unrevealing and
+# the identical secret sails through. The rule below keys on the credential's own
+# shape instead, so it does not care what the variable is called.
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "vendor-prefixed-secret-key"
+description = "Vendor-prefixed secret key (sk_live_ / sk_prod_ / sk_test_), regardless of surrounding context"
+# Deliberately no `entropy` threshold: the prefix is high-signal on its own, and an
+# entropy floor would reintroduce exactly the context-sensitivity this rule exists to
+# remove. Length floor of 16 keeps it off short placeholders.
+regex = '''\bsk_(live|prod|test)_[A-Za-z0-9][A-Za-z0-9_-]{15,}'''
+keywords = ["sk_live_", "sk_prod_", "sk_test_"]
+tags = ["key", "vendor-prefixed"]
+
+  [[rules.allowlists]]
+  description = "Redacted placeholders in prose, e.g. documentation examples"
+  regexTarget = "match"
+  regexes = ['''sk_(live|prod|test)_<[A-Za-z]+>''']
