@@ -1,0 +1,32 @@
+# Reference: https://github.com/Homebrew/homebrew-bundle
+#
+# ROLE LAYER: personal
+#
+# Applied on every machine whose role is "personal" (D3, three-layer model:
+# base -> role -> machine). See runbooks/chezmoi-migration-plan.md.
+#
+# These packages were uninstalled from the work Mac czimacos6457 on 2026-08-06.
+# The personal Mac does not exist yet; it gets set up after the work-Mac
+# migration completes. Nothing here is installed locally right now.
+#
+# At Phase 3 this file moves verbatim to dot_config/homebrew/Brewfile.role-personal.
+
+# Exiftool - used by digiKam and RawTherapee (photography workflow)
+brew "exiftool"
+
+# Media tools
+brew "ffmpeg" # dependency for merging fragments and tracks
+brew "bento4" # package that contains mp4decrypt
+brew "yt-dlp" # fork of Youtube-DL with more features and built on modern Python
+# MakeMVK is used to convert ripped DVD images and discs into MKV files without transcoding the media
+cask "makemkv"
+
+# Keyboard and mouse sharing
+# OPEN QUESTION: deskflow is a server/client app — both ends of a shared
+# keyboard/mouse setup need it installed. If the intent is to share input between
+# the work Mac and the personal Mac, this belongs in the BASE Brewfile, not here.
+# It was uninstalled from czimacos6457 along with the rest of this block; if that
+# turns out to be wrong, move these two lines to brew/Brewfile and reinstall with
+#   brew install --cask deskflow
+tap "deskflow/tap"
+  cask "deskflow/tap/deskflow"

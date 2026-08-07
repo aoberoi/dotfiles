@@ -1,10 +1,19 @@
 # Reference: https://github.com/Homebrew/homebrew-bundle
 #
 # ============================ BASE ============================
-# Everything from here down to the OVERLAY marker is the base set: packages that
-# belong on ANY Mac. At Phase 3 of the chezmoi migration this becomes
-# dot_config/homebrew/Brewfile, applied on every machine.
-# See runbooks/chezmoi-migration-plan.md (D3, Phase 0.5).
+# The base layer: packages that belong on ANY Mac.
+#
+# D3 defines three layers, applied in order:
+#   1. brew/Brewfile                        <- this file, every machine
+#   2. brew/Brewfile.role-<role>            <- every machine of that role
+#   3. brew/Brewfile.machine-<machine>      <- one specific machine
+#
+# NOTE: dotbot only applies this base file (see install.conf.yaml). The role and
+# machine layers are applied by chezmoi from Phase 4 onward. That is fine during
+# the migration because both overlays are already in their intended state on this
+# machine. At Phase 3 these files move to dot_config/homebrew/ unchanged.
+#
+# See runbooks/chezmoi-migration-plan.md (D3, R3, Phase 0.5).
 # ==============================================================
 
 # A better Terminal
@@ -87,62 +96,3 @@ cask "kap"
 # AI
 cask "claude-code"
 brew "anomalyco/tap/opencode"
-
-# ================= PERSONAL (role = personal) ==================
-# Wanted only on the personal Mac, which does not exist yet — it gets set up
-# after the work-Mac migration completes.
-#
-# These are currently INSTALLED on this work Mac and were previously in the base
-# set. They stay in this file for now, so the current dotbot setup keeps behaving
-# identically and nothing gets uninstalled. `brew bundle install` never removes
-# packages, so leaving them here is harmless.
-#
-# OPEN QUESTION for Phase 3 — where does this block actually go? D3 only defines
-# two layers (base + per-machine overlay), and there is no slot for "every
-# personal machine". Either:
-#   a) add a role layer, applying base -> Brewfile.{{ .role }} -> Brewfile.{{ .machine }}
-#   b) park these in the future personal machine's overlay instead
-# Resolve before Phase 3. See runbooks/chezmoi-migration-plan.md (R3).
-# ===============================================================
-
-# Exiftool - used by digiKam and RawTherapee (photography workflow)
-brew "exiftool"
-
-# Media tools
-brew "ffmpeg" # dependency for merging fragments and tracks
-brew "bento4" # package that contains mp4decrypt
-brew "yt-dlp" # fork of Youtube-DL with more features and built on modern Python
-# MakeMVK is used to convert ripped DVD images and discs into MKV files without transcoding the media
-cask "makemkv"
-
-# Keyboard and mouse sharing
-# NOTE: deskflow is a server/client app — both ends of a shared keyboard/mouse
-# setup need it installed. If the intent is to share between this work Mac and the
-# personal Mac, this belongs in BASE, not here. Flagged for confirmation.
-tap "deskflow/tap"
-  cask "deskflow/tap/deskflow"
-
-# ==================== OVERLAY: czimacos6457 ====================
-# Machine-specific additions on top of the base set above. These were found
-# installed but undeclared during the Phase 0.5 audit (2026-08-06).
-#
-# At Phase 3 this whole block moves verbatim into
-#   dot_config/homebrew/Brewfile.czimacos6457
-# and is applied only on this machine. Until then it lives here so the current
-# dotbot setup keeps behaving identically.
-#
-# Classification: "tight base" — anything work- or hardware-specific is overlay.
-# ===============================================================
-
-# CZI-specific tooling
-tap "chanzuckerberg/tap"
-brew "chanzuckerberg/tap/argus"
-brew "chanzuckerberg/tap/aws-oidc"
-
-# Cloud tooling — work-driven, not wanted on a fresh personal Mac
-brew "awscli"
-brew "kubernetes-cli"
-
-# Brightness/volume control for external displays — hardware-specific
-cask "monitorcontrol"
-
