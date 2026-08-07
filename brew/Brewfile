@@ -1,4 +1,11 @@
 # Reference: https://github.com/Homebrew/homebrew-bundle
+#
+# ============================ BASE ============================
+# Everything from here down to the OVERLAY marker is the base set: packages that
+# belong on ANY Mac. At Phase 3 of the chezmoi migration this becomes
+# dot_config/homebrew/Brewfile, applied on every machine.
+# See runbooks/chezmoi-migration-plan.md (D3, Phase 0.5).
+# ==============================================================
 
 # A better Terminal
 cask "ghostty"
@@ -8,16 +15,30 @@ brew "git"
 brew "git-filter-repo" # extension used for things like removing large files from history
 
 # Prefered credential manager on macOS for GitHub
-# NOTE: This installation is failing as of 4/13/2026
-# cask "git-credential-manager"
+# NOTE: Re-enabled 2026-08-06. The earlier "installation is failing" note was stale —
+# GCM 2.9.1 is installed and working. Its .pkg installs to /usr/local/share/gcm-core
+# even on Apple Silicon, which is why git/gitconfig points there rather than at
+# /opt/homebrew. Do not "fix" that path.
+cask "git-credential-manager"
 
 # Open and/or free fonts
 cask "font-fira-code"
 cask "font-monaspace" # https://monaspace.githubnext.com/
 
+# Dotfiles tooling
+# chezmoi manages this repo; antidote is the zsh plugin manager (replaces the
+# zsh/antidote git submodule). Activate antidote with:
+#   source $HOMEBREW_PREFIX/opt/antidote/share/antidote/antidote.zsh
+brew "chezmoi"
+brew "antidote"
+
 # Replacement for cat and man, supporting colorized syntax highlighting
 brew "bat"
 tap "eth-p/software"
+# NOTE: this tap is not trusted, so `brew bundle` cannot check whether the formula is
+# outdated. Trusting it is a deliberate manual step, not something the install script
+# should do for you, because it lets the tap run arbitrary install code:
+#   brew trust --formula eth-p/software/bat-extras-batman
 brew "eth-p/software/bat-extras-batman"
 
 # jq - macOS has this built in, but managing it through brew would allow for updating easier
@@ -78,4 +99,28 @@ tap "deskflow/tap"
 # AI
 cask "claude-code"
 brew "anomalyco/tap/opencode"
+
+# ==================== OVERLAY: czimacos6457 ====================
+# Machine-specific additions on top of the base set above. These were found
+# installed but undeclared during the Phase 0.5 audit (2026-08-06).
+#
+# At Phase 3 this whole block moves verbatim into
+#   dot_config/homebrew/Brewfile.czimacos6457
+# and is applied only on this machine. Until then it lives here so the current
+# dotbot setup keeps behaving identically.
+#
+# Classification: "tight base" — anything work- or hardware-specific is overlay.
+# ===============================================================
+
+# CZI-specific tooling
+tap "chanzuckerberg/tap"
+brew "chanzuckerberg/tap/argus"
+brew "chanzuckerberg/tap/aws-oidc"
+
+# Cloud tooling — work-driven, not wanted on a fresh personal Mac
+brew "awscli"
+brew "kubernetes-cli"
+
+# Brightness/volume control for external displays — hardware-specific
+cask "monitorcontrol"
 
