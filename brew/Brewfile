@@ -8,7 +8,8 @@ brew "git"
 brew "git-filter-repo" # extension used for things like removing large files from history
 
 # Prefered credential manager on macOS for GitHub
-cask "git-credential-manager"
+# NOTE: This installation is failing as of 4/13/2026
+# cask "git-credential-manager"
 
 # Open and/or free fonts
 cask "font-fira-code"
@@ -17,7 +18,7 @@ cask "font-monaspace" # https://monaspace.githubnext.com/
 # Replacement for cat and man, supporting colorized syntax highlighting
 brew "bat"
 tap "eth-p/software"
-  brew "bat-extras-batman"
+brew "eth-p/software/bat-extras-batman"
 
 # jq - macOS has this built in, but managing it through brew would allow for updating easier
 brew "jq"
@@ -71,10 +72,10 @@ cask "makemkv"
 cask "kap"
 
 # Keyboard and mouse sharing
-tap "deskflow/homebrew-tap"
-  cask "deskflow"
+tap "deskflow/tap"
+  cask "deskflow/tap/deskflow"
 
 # AI
-brew "claude-code"
+cask "claude-code"
 brew "anomalyco/tap/opencode"
 
