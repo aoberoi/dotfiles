@@ -35,10 +35,12 @@ brew "antidote"
 # Replacement for cat and man, supporting colorized syntax highlighting
 brew "bat"
 tap "eth-p/software"
-# NOTE: this tap is not trusted, so `brew bundle` cannot check whether the formula is
-# outdated. Trusting it is a deliberate manual step, not something the install script
-# should do for you, because it lets the tap run arbitrary install code:
+# NOTE: non-official taps must be trusted before Homebrew will load them or check
+# whether they are outdated. Trust is per-MACHINE (~/.homebrew/trust.json) and is
+# deliberately NOT managed by this repo, so each new Mac needs this run by hand:
 #   brew trust --formula eth-p/software/bat-extras-batman
+# Trusted on czimacos6457 on 2026-08-06. Note `alias man='batman'` in zshrc depends
+# on this formula, so an untrusted machine has a broken `man`.
 brew "eth-p/software/bat-extras-batman"
 
 # jq - macOS has this built in, but managing it through brew would allow for updating easier
@@ -79,6 +81,30 @@ brew "go"
 # Swift open source toolchain manager
 brew "swiftly"
 
+# Screen recording
+cask "kap"
+
+# AI
+cask "claude-code"
+brew "anomalyco/tap/opencode"
+
+# ================= PERSONAL (role = personal) ==================
+# Wanted only on the personal Mac, which does not exist yet — it gets set up
+# after the work-Mac migration completes.
+#
+# These are currently INSTALLED on this work Mac and were previously in the base
+# set. They stay in this file for now, so the current dotbot setup keeps behaving
+# identically and nothing gets uninstalled. `brew bundle install` never removes
+# packages, so leaving them here is harmless.
+#
+# OPEN QUESTION for Phase 3 — where does this block actually go? D3 only defines
+# two layers (base + per-machine overlay), and there is no slot for "every
+# personal machine". Either:
+#   a) add a role layer, applying base -> Brewfile.{{ .role }} -> Brewfile.{{ .machine }}
+#   b) park these in the future personal machine's overlay instead
+# Resolve before Phase 3. See runbooks/chezmoi-migration-plan.md (R3).
+# ===============================================================
+
 # Exiftool - used by digiKam and RawTherapee (photography workflow)
 brew "exiftool"
 
@@ -89,16 +115,12 @@ brew "yt-dlp" # fork of Youtube-DL with more features and built on modern Python
 # MakeMVK is used to convert ripped DVD images and discs into MKV files without transcoding the media
 cask "makemkv"
 
-# Screen recording
-cask "kap"
-
 # Keyboard and mouse sharing
+# NOTE: deskflow is a server/client app — both ends of a shared keyboard/mouse
+# setup need it installed. If the intent is to share between this work Mac and the
+# personal Mac, this belongs in BASE, not here. Flagged for confirmation.
 tap "deskflow/tap"
   cask "deskflow/tap/deskflow"
-
-# AI
-cask "claude-code"
-brew "anomalyco/tap/opencode"
 
 # ==================== OVERLAY: czimacos6457 ====================
 # Machine-specific additions on top of the base set above. These were found
