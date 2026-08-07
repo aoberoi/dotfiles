@@ -2,11 +2,10 @@
 #
 # Refuse commits that look like they contain a credential.
 #
-# This exists because a stray credential pasted into a config file while debugging is
-# one `git add -A` away from a public repo (see §5 of
-# runbooks/chezmoi-migration-plan.md). Secrets now come from 1Password at apply time
-# and should never be in a commit at all; this is defence in depth for the day that
-# assumption slips.
+# Secrets come from 1Password at `chezmoi apply` time and should never appear in a
+# commit at all (see §5 of runbooks/chezmoi-migration-plan.md). This is defence in
+# depth for the day that assumption slips — a stray value pasted into a config file
+# while debugging is one `git add -A` away from a public repo.
 #
 # Two layers, so there is always some check even on a machine where the optional tool
 # is not installed yet:
