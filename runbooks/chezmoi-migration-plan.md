@@ -1,6 +1,16 @@
 # Migration Plan: dotbot → chezmoi (macOS)
 
-Status: **proposed** — agreed in principle, not yet executed.
+Status: **COMPLETE** — executed 2026-08-06/07. Kept as the design record.
+
+The live source directory is `~/.local/share/chezmoi` (D5). `~/Developer/dotfiles` no
+longer exists; use `chezmoi cd` to reach the source from anywhere. `chezmoi doctor`,
+`chezmoi status` and `chezmoi verify` are all clean.
+
+**Validated during the relocation:** moving the source re-fired
+`run_onchange_after_50-install-git-hooks.sh.tmpl` and wired `core.hooksPath` in the new
+clone, exactly as the prefix reasoning predicted — while the other three scripts
+correctly did *not* re-run, since their rendered content was unchanged. That is the
+behaviour `run_once_` would have silently failed to deliver.
 Scope: this repo stays **macOS-only**. Linux lives in [`aoberoi/dotfiles-linux`](https://github.com/aoberoi/dotfiles-linux).
 
 ---
