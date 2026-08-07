@@ -30,6 +30,14 @@ defaults write NSGlobalDomain NSNavPanelExpandedStateForSaveMode2 -bool true
 # Show App Switcher (Cmd+Tab) on all displays. The default only shows the it on the display with the Dock, but when I
 # use an external display I often leave the Dock on the laptop display.
 defaults write com.apple.dock appswitcher-all-displays -bool true
+
+# Disable the "Switch to Space with open windows" setting
+# In order to script Electron apps that don't respond to JXA (no direct object creation), we
+# control them using UI Scripting (simulating menu clicking). This requires activating the app
+# before sending the key presses, which can jump to a different Space, unless this setting is disabled.
+#defaults write com.apple.applespaces AppleSpacesSwitchOnActivate -bool false
+defaults write -g AppleSpacesSwitchOnActivate -bool false
+
 # Reload Settings that were applied programatically
 /System/Library/PrivateFrameworks/SystemAdministration.framework/Resources/activateSettings -u
 
