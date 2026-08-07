@@ -43,7 +43,7 @@ All decisions are settled; there are no open questions blocking execution.
 | # | Question | Current answer | Revisit when |
 | --- | --- | --- | --- |
 | R1 | What attributes belong on `~/.local/bin` and its children? | Ship as plain `dot_local/bin/executable_git_blobless_clone`. **Not** `exact_`. | `~/.local/bin` accumulates more than one or two repo-owned scripts, or a script is retired and its orphan needs cleaning up. Details in §3. |
-| R2 | **Wanted: `cargo` shell completions.** How to get them without checking a file in? | None today. Homebrew ships `_rustup` but **not** `_cargo`, and the Rust toolchain that would provide it is not installed on this machine. | Rust is actually used again. Blocked on prerequisites below — this is a *desired follow-up*, not a defect. |
+| R2 | ~~Wanted: `cargo` shell completions.~~ | **RESOLVED 2026-08-07 — Option A.** `dot_zshrc` prepends `$(rustc --print sysroot)/share/zsh/site-functions` to `fpath`, guarded on `rustc` existing. Nothing generated, nothing checked in, follows the active toolchain. | Closed. |
 | R3 | ~~D3 has no slot for "every personal machine."~~ | **RESOLVED 2026-08-06 — option 1 chosen.** D3 amended to three layers; personal-only packages go in `Brewfile.role-personal`. | Closed. |
 | R4 | Is the `~/.cargo/env` block in `dot_zshrc` still needed? | Left in place, unchanged. It is guarded, so harmless. | It dates from a `rustup-init` install the formula no longer performs, and `~/.cargo/env` does not exist on this machine. Now that `$(brew --prefix rustup)/bin` is on `$PATH` (§4.4), that block is likely dead. Verify after a toolchain is installed, then probably delete. |
 
@@ -129,8 +129,10 @@ Whichever is chosen, `_cargo` must **not** land in `exact_dot_zfunc/` (§4.5).
 │   ├── run_once_before_10-install-homebrew.sh
 │   ├── run_onchange_after_20-install-packages.sh.tmpl
 │   ├── run_onchange_after_30-macos-defaults.sh
-│   └── run_once_after_40-rustup-init.sh
+│   └── run_onchange_after_50-install-git-hooks.sh.tmpl
 ├── .gitignore
+├── .githooks/pre-commit               # secret guard, wired via core.hooksPath
+├── .gitleaks.toml                     # extends the default ruleset
 ├── .vscode/settings.json              # auto-ignored (leading dot)
 ├── AGENTS.md                          # rewritten; .chezmoiignore'd
 ├── CLAUDE.md                          # .chezmoiignore'd
@@ -380,9 +382,9 @@ reference. `.chezmoidata.toml` holds the coordinates; nothing sensitive is commi
    | `run_` | Wrong. Runs every apply, so `chezmoi status` lists it as permanently pending and **`chezmoi verify` can never exit 0** — destroying its value as a drift detector and making P8-6's acceptance criterion unmeetable. Discovered the hard way during Phase 6. |
    | `run_onchange_` | **Right**, and only because the script body embeds `{{ .chezmoi.sourceDir }}`. Moving the source changes the rendered content, which re-fires the script — covering the cutover case without the `run_` tax. |
 
-   **Independent confirmation of the Phase 0 purge:** `gitleaks git .` over the full history reports *no leaks found*. A maintained scanner over every commit agrees the key is gone.
+   **Baseline:** `gitleaks git .` over the full history reports *no leaks found*, so the guard starts from a clean repo.
 
-   **`.gitleaks.toml` — why a custom rule was needed.** gitleaks default ruleset catches a key of this shape, but only by luck of naming. Measured against a synthetic key of the same shape:
+   **`.gitleaks.toml` — why a custom rule was needed.** gitleaks' default ruleset catches a key of this shape, but only by luck of naming. Measured against a synthetic key of the same shape:
 
    | How it appears | Default ruleset |
    | --- | --- |
@@ -530,7 +532,7 @@ sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply aoberoi
 3. `run_once_before_10-install-homebrew.sh` installs Homebrew.
 4. Files are written.
 5. `run_onchange_after_20-install-packages.sh` runs `brew bundle`.
-6. macOS defaults, then rustup.
+6. macOS defaults, then git-hooks wiring. (There is no rustup script — §4.4.)
 
 Add `brew "chezmoi"` to the base Brewfile so chezmoi becomes brew-managed after bootstrap. **Task:** confirm the bootstrap binary's location and remove it if it shadows the brew-installed one on `$PATH`.
 

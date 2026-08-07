@@ -32,6 +32,6 @@ keywords = ["sk_live_", "sk_prod_", "sk_test_"]
 tags = ["key", "vendor-prefixed"]
 
   [[rules.allowlists]]
-  description = "Redacted placeholders in prose, e.g. documentation examples"
+  description = "Redacted placeholders in prose and documentation examples"
   regexTarget = "match"
   regexes = ['''sk_(live|prod|test)_<[A-Za-z]+>''']

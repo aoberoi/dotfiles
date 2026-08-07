@@ -1,3 +1,6 @@
+Why the vim configuration is as small as it is. This was `vim/README.md` before the chezmoi
+migration; the config it describes is a single file, `dot_vim/vimrc` → `~/.vim/vimrc`.
+
 ## Philosophy
 
 In the past, I've copied and pasted a ton of popular vim configurations from GitHub. While that
@@ -24,8 +27,12 @@ scratch, and is in philosophical agreement: https://github.com/romainl/idiomatic
 
 Vim 7.4+
 
-macOS 14.7 (Sonoma) contains v9.0, which seems fine for my purposes. The system configuration
-disables loading the "spartan" `defaults.vim`, so I'm starting from a pretty blank canvas.
+macOS 14.7 (Sonoma) contained v9.0, which seemed fine for my purposes; macOS 26.6 ships v9.1. The
+system configuration (`/usr/share/vim/vimrc`) sets `skip_defaults_vim=1`, disabling the "spartan"
+`defaults.vim`, so I'm starting from a pretty blank canvas.
+
+Note the config is installed as `~/.vim/vimrc`, not `~/.vimrc`. Vim reads it as the "2nd user vimrc
+file" — see `vim --version`. `~/.vimrc` takes precedence if it exists, so don't create one.
 
 ## Side note
 

@@ -1,5 +1,12 @@
 ## zsh configuration
 
+Reference notes on how zsh startup works on macOS, and on this repo's plugin and completion setup.
+This was `zsh/README.md` before the chezmoi migration, which is why it mixes general zsh reference
+material with repo-specific detail.
+
+The files themselves now live at `dot_zprofile` → `~/.zprofile`, `dot_zshrc` → `~/.zshrc`,
+`exact_dot_zfunc/` → `~/.zfunc`, and `dot_config/zsh/zsh_plugins.txt` → `~/.config/zsh/zsh_plugins.txt`.
+
 ### Order, conditions, and defaults
 
 When a shell is opened:
@@ -19,6 +26,10 @@ When a shell is closed:
 
 1. `~/.zlogout` - **Login shells only** Does not exist in default user home.
 2. `/etc/zlogout` - **Login shells only** Does not exist on macOS systems.
+
+A practical consequence of step 4 being login-only: `~/.zprofile` is where `brew shellenv` runs, so
+`$HOMEBREW_PREFIX` is not set in a non-login interactive shell that did not inherit it. `~/.zshrc`
+therefore defaults it (`: ${HOMEBREW_PREFIX:=/opt/homebrew}`) before using it to locate antidote.
 
 ### Interactive and login shells
 
@@ -48,6 +59,23 @@ SSH sessions are both **login and interactive shells**.
 
 This repo uses [antidote](https://getantidote.github.io/) to manage zsh plugins. It's quite an active and helpful
 project, and doesn't cost too much on performance.
+
+Antidote is installed by Homebrew (`brew "antidote"` in `dot_config/homebrew/Brewfile`), not vendored
+here — it used to be a git submodule at `zsh/antidote/`. `~/.zshrc` sources it from the path in the
+formula's caveat and then statically loads the manifest:
+
+```
+source $HOMEBREW_PREFIX/opt/antidote/share/antidote/antidote.zsh
+antidote load ~/.config/zsh/zsh_plugins.txt
+```
+
+The plugins listed in the manifest (`dot_config/zsh/zsh_plugins.txt`) are not in this repo; antidote
+clones them into its own cache. Static loading also generates `~/.config/zsh/zsh_plugins.zsh` next to
+the manifest, which `.chezmoiignore` excludes so chezmoi doesn't fight antidote over it.
+
+**Ordering constraint:** the `belak/zsh-utils path:completion` plugin is what calls `compinit`.
+Everything that adds to `FPATH` must run *before* `antidote load`, and every `compdef` must run
+*after* it. `~/.zshrc` is arranged that way deliberately; preserve it when editing.
 
 ### Quick look at antidote performance
 
@@ -114,9 +142,16 @@ When new completion functions are added, its often necessary to clear the cache 
 $ rm ~/.cache/zsh/compdump
 ```
 
-In addition, a custom symlink `~/.zfunc` is created and prepended to the zsh fpath. That symlink points to `zfunc` in
-this directory. It contains scripts for completions (named with an underscore and then the command name). Any custom
-completions or completions that are not placed in the Homebrew completions directory can be stored here.
+In addition, `~/.zfunc` is prepended to the zsh fpath. chezmoi writes it from `exact_dot_zfunc/` in
+this repo. It holds hand-written autoload functions (`fnm_upgrade`, `sizeup`) and could hold custom
+completion functions (named with an underscore and then the command name).
+
+Two caveats that come with `exact_`:
+
+* chezmoi owns the directory wholly — anything in `~/.zfunc` that isn't in `exact_dot_zfunc/` gets
+  deleted on apply. Never put a *generated* completion file there.
+* `~/.zfunc` is prepended *after* Homebrew's site-functions, so anything here shadows Homebrew's
+  copy of the same name. That is why `_rustup` is not checked in; Homebrew ships a fresher one.
 
 ### Resources
 

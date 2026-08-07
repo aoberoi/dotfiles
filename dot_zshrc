@@ -106,6 +106,21 @@ fpath=( ~/.zfunc "${fpath[@]}" )
 autoload -Uz ${fpath[1]}/[^_.]*(N:t)
 
 #
+# Cargo completions
+#
+# The Rust toolchain ships `_cargo` itself, at <sysroot>/share/zsh/site-functions. Homebrew's rustup
+# formula does NOT ship it — only `_rustup` — so this is the one completion that has to be located
+# rather than just inherited. Resolving the sysroot at startup means it follows `rustup default` and
+# per-directory toolchain overrides on its own, with nothing generated and nothing to go stale.
+#
+# Costs one `rustc` subprocess per interactive shell. Guarded, so it is a no-op until a toolchain is
+# actually installed (`rustup toolchain install stable`) — the formula does not bring one.
+#
+if command -v rustc >/dev/null 2>&1; then
+  fpath=( "$(rustc --print sysroot)/share/zsh/site-functions" "${fpath[@]}" )
+fi
+
+#
 # Secrets
 #
 # Written by chezmoi from a 1Password-backed template, at 0600. It is absent on machines where the

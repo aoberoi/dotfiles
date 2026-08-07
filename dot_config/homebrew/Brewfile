@@ -13,10 +13,6 @@
 # machine are ever written. The Phase 4 script applies whichever layers exist,
 # stat-guarding each, and must NOT run `brew trust` (D8).
 #
-# NOTE during migration: dotbot still applies only this base file, and does so
-# straight from the source tree (see install.conf.yaml). That is harmless because
-# both overlays are already in their intended state on this machine.
-#
 # See runbooks/chezmoi-migration-plan.md (D3, R3, Phase 0.5).
 # ==============================================================
 
@@ -69,7 +65,8 @@ brew "ncdu"
 # https://caddyserver.com/docs/command-line
 brew "caddy"
 
-# Modern Python - symlinks for python3 and pip3 will invoke this version
+# Modern Python. NOTE: `python3` on PATH is not necessarily this version — other
+# formulae pull in newer Pythons as dependencies. Check with `python3 --version`.
 # https://docs.brew.sh/Homebrew-and-Python
 brew "python@3.12"
 
