@@ -1,0 +1,8 @@
+# Homebrew uses rolling releases, so the lockfile is not committed.
+# https://github.com/Homebrew/homebrew-bundle#versions-and-lockfiles
+#
+# `brew bundle` writes this next to whichever Brewfile it is handed. Normally that
+# is the deployed copy under ~/.config/homebrew/ (covered separately by
+# .chezmoiignore), but dotbot currently runs against the source tree, so guard here
+# too.
+dot_config/homebrew/Brewfile.lock.json

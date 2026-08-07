@@ -9,7 +9,8 @@
 # The personal Mac does not exist yet; it gets set up after the work-Mac
 # migration completes. Nothing here is installed locally right now.
 #
-# At Phase 3 this file moves verbatim to dot_config/homebrew/Brewfile.role-personal.
+# Deploys to ~/.config/homebrew/Brewfile.role-personal, but only on machines whose
+# role is "personal" — .chezmoiignore filters out every non-matching role layer.
 
 # Exiftool - used by digiKam and RawTherapee (photography workflow)
 brew "exiftool"
@@ -22,11 +23,10 @@ brew "yt-dlp" # fork of Youtube-DL with more features and built on modern Python
 cask "makemkv"
 
 # Keyboard and mouse sharing
-# OPEN QUESTION: deskflow is a server/client app — both ends of a shared
-# keyboard/mouse setup need it installed. If the intent is to share input between
-# the work Mac and the personal Mac, this belongs in the BASE Brewfile, not here.
-# It was uninstalled from czimacos6457 along with the rest of this block; if that
-# turns out to be wrong, move these two lines to brew/Brewfile and reinstall with
-#   brew install --cask deskflow
+# DECIDED 2026-08-06: personal role only. deskflow is a server/client app, so
+# sharing input between two machines would need it on both ends — that is
+# explicitly not wanted right now, and it stays off every non-personal machine.
+# Uninstalled from czimacos6457. If this is ever revisited, moving these two lines
+# to the base Brewfile is the whole change.
 tap "deskflow/tap"
   cask "deskflow/tap/deskflow"

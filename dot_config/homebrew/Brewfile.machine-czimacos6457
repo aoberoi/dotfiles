@@ -9,8 +9,8 @@
 # on 2026-08-06. Classification is "tight base": anything work- or
 # hardware-specific lives in an overlay rather than the base set.
 #
-# At Phase 3 this file moves verbatim to
-# dot_config/homebrew/Brewfile.machine-czimacos6457.
+# Deploys to ~/.config/homebrew/Brewfile.machine-czimacos6457, but only on that
+# machine — .chezmoiignore filters out every non-matching machine layer.
 
 # CZI-specific tooling
 tap "chanzuckerberg/tap"

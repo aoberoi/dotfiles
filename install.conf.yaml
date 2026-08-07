@@ -78,7 +78,10 @@
 
 # NOTE: this will upgrade ALL formulas when running ./install on a system that's already been set up
 - brewfile:
-  - brew/Brewfile
+  # Repointed during the chezmoi migration — the Brewfiles now live in the chezmoi
+  # source tree. dotbot applies only the base layer; the role and machine layers are
+  # chezmoi's job. This whole file is deleted at Phase 6.
+  - dot_config/homebrew/Brewfile
 
 - shell:
   # Ideally, this a formula would be published for this on Homebrew
