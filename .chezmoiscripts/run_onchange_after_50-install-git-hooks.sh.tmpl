@@ -8,11 +8,18 @@
 # points at them. That setting is per-repository and local, so it affects only this
 # repo and never leaks into others.
 #
-# Why `run_` and not `run_once_`: chezmoi records run_once_ scripts by content hash in
-# a state database that outlives the source directory. At cutover the source moves from
-# ~/Developer/dotfiles to ~/.local/share/chezmoi (D5, P8-4), and a run_once_ script
-# would already be marked done — leaving the NEW clone with no hook and no warning.
-# Running every apply avoids that trap. The cost is one `git config --get` per apply.
+# On the prefix, which took three tries to get right:
+#
+#   run_once_    WRONG. Recorded by content hash in a state database that outlives the
+#                source directory. At cutover the source moves from ~/Developer/dotfiles
+#                to ~/.local/share/chezmoi (D5, P8-4) and the script is already marked
+#                done — leaving the NEW clone with no hook and no warning.
+#   run_         WRONG. Runs every apply, so it is permanently listed as pending by
+#                `chezmoi status`, which makes `chezmoi verify` exit non-zero forever
+#                and destroys its value as a drift detector.
+#   run_onchange_ RIGHT, because of the `repo=` line below. The rendered content embeds
+#                the source directory path, so moving the source changes the content and
+#                re-fires the script — covering the cutover case without the run_ tax.
 set -euo pipefail
 
 repo={{ .chezmoi.sourceDir | quote }}

@@ -16,26 +16,6 @@ CLAUDE.md
 runbooks
 
 # ---------------------------------------------------------------------------
-# TRANSITIONAL — legacy dotbot layout. DELETE THIS BLOCK AT PHASE 6.
-#
-# These directories do not begin with "." so chezmoi does NOT ignore them
-# automatically. Without these rules `chezmoi apply` would cheerfully create
-# ~/brew, ~/zsh, ~/dotbot, ~/install.conf.yaml and friends. They disappear from the
-# repo when dotbot is decommissioned (P6-3), at which point this whole block goes.
-# ---------------------------------------------------------------------------
-bin
-brew
-dotbot
-dotbot-brew
-ghostty
-git
-install
-install.conf.yaml
-script
-vim
-zsh
-
-# ---------------------------------------------------------------------------
 # Runtime-generated artifacts. Owned by other tools, not by chezmoi.
 # ---------------------------------------------------------------------------
 
