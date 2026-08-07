@@ -6,8 +6,8 @@
 #
 # WHY THIS EXISTS
 #
-# The default ruleset catches a key of this shape, but only
-# by luck of naming. Measured against a synthetic key of the same shape:
+# The default ruleset catches a key of this shape, but only by luck of naming.
+# Measured against a synthetic key:
 #
 #   export KG_API_KEY=sk_prod_<uuid>_<64 chars>   -> caught  (generic-api-key)
 #   api_key = "sk_prod_<uuid>_<64 chars>"         -> caught  (generic-api-key)
