@@ -78,3 +78,7 @@ tap "deskflow/homebrew-tap"
 brew "claude-code"
 brew "anomalyco/tap/opencode"
 
+# Trying these out
+brew "cmake" # in order to build VoiceInk locally
+brew "wireshark-app" # inspecting traffic. this requires sudo during enstall
+brew "mitmproxy" # inspecting traffic.

@@ -223,3 +223,8 @@ zstyle ':completion:*:*:*:*:warnings' format ' %F{red}-- no matches found --%f'
 autoload -U promptinit; promptinit
 # ... any pure customization goes here ...
 prompt pure
+
+# Added by LM Studio CLI (lms)
+export PATH="$PATH:/Users/ankur/.lmstudio/bin"
+# End of LM Studio CLI section
+
