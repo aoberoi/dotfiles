@@ -1,0 +1,42 @@
+{{/*
+Template for this machine's chezmoi config, rendered once by `chezmoi init` into
+~/.config/chezmoi/chezmoi.toml. That file is per-machine and is NOT in this repo.
+
+The ...Once variants only prompt when the value is not already stored, so re-running
+`chezmoi init` to pick up new settings will not re-ask what you have already answered.
+
+See runbooks/chezmoi-migration-plan.md (D4, D7).
+*/ -}}
+{{- $machine := promptStringOnce . "machine" "Machine short name, filename-safe (e.g. czimacos6457)" -}}
+{{- $role    := promptChoiceOnce . "role" "Role for this machine" (list "personal" "work") -}}
+{{- $email   := promptStringOnce . "email" "Git author email" -}}
+
+# Machine identity (D4). `machine` selects the Brewfile.machine-* overlay; `role`
+# selects the Brewfile.role-* overlay and gates role-specific config such as the
+# 1Password-backed secrets file (D7).
+[data]
+    machine = {{ $machine | quote }}
+    role    = {{ $role | quote }}
+    email   = {{ $email | quote }}
+
+# Copy mode (D1) means editing ~/.zshrc directly does not reach the repo. Making
+# `chezmoi edit` apply on save restores most of the immediacy the dotbot symlink
+# workflow had. See the "Reconciling drift" section of the README.
+[edit]
+    apply = true
+
+[onepassword]
+    # Fail fast with a legible error instead of hanging when the vault is locked and
+    # the session is non-interactive (§5). Flip to true if you would rather chezmoi
+    # run `op signin` for you.
+    prompt = false
+
+{{/*
+NOTE on `merge`: chezmoi passes exactly three paths (destination, source, target),
+whereas the VS Code merge editor used by `git mergetool` expects four (remote, local,
+base, merged). There is no clean mapping, so the vimdiff default is left in place.
+
+This is a template comment rather than a TOML comment on purpose: chezmoi evaluates
+template actions everywhere, including inside "#" comments, so writing an example
+containing {{ "{{ .Destination }}" }} as a TOML comment fails to render.
+*/ -}}

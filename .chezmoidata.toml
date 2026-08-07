@@ -1,0 +1,15 @@
+# Static data shared by every machine, committed to this repo.
+#
+# Contrast with ~/.config/chezmoi/chezmoi.toml, which holds PER-MACHINE answers
+# (.machine, .role, .email) and is deliberately not version controlled.
+#
+# Nothing secret belongs in here — only the coordinates used to look secrets up.
+
+[onepassword]
+# Two op accounts are configured on this machine, so `op read` cannot disambiguate
+# on its own and fails with "multiple accounts found". chezmoi has no
+# onepassword.account config key; the account is the optional SECOND ARGUMENT to
+# onepasswordRead. This value is passed there. See runbooks (D7, §5).
+account   = "chanzuckerberg.1password.com"
+vault     = "Employee"
+kgApiItem = "kg-api"

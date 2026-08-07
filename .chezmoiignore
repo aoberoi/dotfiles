@@ -1,0 +1,57 @@
+{{/*
+Patterns match TARGET paths (.config/…), not source paths (dot_config/…).
+This file is itself a template, which is what makes the per-role and per-machine
+filtering below possible. Check the result with `chezmoi ignored`.
+
+Entries in the source directory that begin with "." are ignored automatically
+(.git/, .vscode/, .gitmodules), so they need no rules here.
+*/ -}}
+
+# ---------------------------------------------------------------------------
+# Repo-only files. These live in the repository but must never be written to $HOME.
+# ---------------------------------------------------------------------------
+README.md
+AGENTS.md
+CLAUDE.md
+runbooks
+
+# ---------------------------------------------------------------------------
+# TRANSITIONAL — legacy dotbot layout. DELETE THIS BLOCK AT PHASE 6.
+#
+# These directories do not begin with "." so chezmoi does NOT ignore them
+# automatically. Without these rules `chezmoi apply` would cheerfully create
+# ~/brew, ~/zsh, ~/dotbot, ~/install.conf.yaml and friends. They disappear from the
+# repo when dotbot is decommissioned (P6-3), at which point this whole block goes.
+# ---------------------------------------------------------------------------
+bin
+brew
+dotbot
+dotbot-brew
+ghostty
+git
+install
+install.conf.yaml
+script
+vim
+zsh
+
+# ---------------------------------------------------------------------------
+# Runtime-generated artifacts. Owned by other tools, not by chezmoi.
+# ---------------------------------------------------------------------------
+
+# antidote regenerates this static plugin file beside its manifest on load.
+.config/zsh/zsh_plugins.zsh
+
+# brew bundle may drop a lockfile next to whichever Brewfile it is given.
+.config/homebrew/Brewfile.lock.json
+
+# ---------------------------------------------------------------------------
+# Homebrew overlays belonging to other roles / other machines (D3).
+#
+# Exclude-then-negate: ordering matters, so keep each negation directly beneath
+# the exclude it refines.
+# ---------------------------------------------------------------------------
+.config/homebrew/Brewfile.role-*
+!.config/homebrew/Brewfile.role-{{ .role }}
+.config/homebrew/Brewfile.machine-*
+!.config/homebrew/Brewfile.machine-{{ .machine }}
