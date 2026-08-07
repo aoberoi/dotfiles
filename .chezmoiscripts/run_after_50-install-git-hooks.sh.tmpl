@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+#
+# Point this repo's git at the tracked .githooks/ directory.
+#
+# The pre-commit hook there blocks commits that look like they contain a credential
+# (P5-3). Hooks in .git/hooks are not version controlled and would be lost on every
+# fresh clone, so the hooks live in .githooks/ — which IS tracked — and core.hooksPath
+# points at them. That setting is per-repository and local, so it affects only this
+# repo and never leaks into others.
+#
+# Why `run_` and not `run_once_`: chezmoi records run_once_ scripts by content hash in
+# a state database that outlives the source directory. At cutover the source moves from
+# ~/Developer/dotfiles to ~/.local/share/chezmoi (D5, P8-4), and a run_once_ script
+# would already be marked done — leaving the NEW clone with no hook and no warning.
+# Running every apply avoids that trap. The cost is one `git config --get` per apply.
+set -euo pipefail
+
+repo={{ .chezmoi.sourceDir | quote }}
+
+# Not a git working tree (e.g. an archive export) — nothing to wire up.
+git -C "$repo" rev-parse --git-dir >/dev/null 2>&1 || exit 0
+
+want=.githooks
+have="$(git -C "$repo" config --local --get core.hooksPath || true)"
+
+if [ "$have" != "$want" ]; then
+  git -C "$repo" config --local core.hooksPath "$want"
+  echo "==> git hooks: core.hooksPath -> $want (in $repo)"
+fi

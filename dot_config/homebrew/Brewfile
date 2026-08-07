@@ -44,6 +44,9 @@ cask "font-monaspace" # https://monaspace.githubnext.com/
 #   source $HOMEBREW_PREFIX/opt/antidote/share/antidote/antidote.zsh
 brew "chezmoi"
 brew "antidote"
+# Secret scanning. Used by .githooks/pre-commit as the broader second layer over
+# that hook's own built-in patterns (P5-3).
+brew "gitleaks"
 
 # Replacement for cat and man, supporting colorized syntax highlighting
 brew "bat"

@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+#
+# Refuse commits that look like they contain a credential.
+#
+# This exists because a stray credential pasted into a config file while debugging is
+# one `git add -A` away from a public repo (see §5 of
+# runbooks/chezmoi-migration-plan.md). Secrets now come from 1Password at apply time
+# and should never be in a commit at all; this is defence in depth for the day that
+# assumption slips.
+#
+# Two layers, so there is always some check even on a machine where the optional tool
+# is not installed yet:
+#   1. a small set of high-signal patterns, built in, no dependencies
+#   2. gitleaks, if it happens to be installed (maintained ruleset, far broader)
+#
+# Deliberately tuned for very few false positives rather than exhaustiveness — a hook
+# that cries wolf gets bypassed reflexively, which is worse than no hook. Patterns
+# match only plausible real credential SHAPES, not merely scary-looking variable names.
+#
+# Bypass, when you are certain: git commit --no-verify
+
+set -uo pipefail
+
+fail=0
+
+# Only look at what is actually being committed, and only at ADDED lines.
+added="$(git diff --cached --unified=0 --no-color --diff-filter=ACM \
+         | grep -E '^\+' | grep -Ev '^\+\+\+' || true)"
+
+if [ -n "$added" ]; then
+  # Each entry: "label<TAB>extended-regex"
+  while IFS=$'\t' read -r label pattern; do
+    [ -z "$label" ] && continue
+    # -e is required, not stylistic: the private-key pattern begins with "-----",
+    # which grep would otherwise parse as a bundle of short options.
+    if hits="$(printf '%s\n' "$added" | grep -nE -e "$pattern" || true)"; [ -n "$hits" ]; then
+      echo "pre-commit: possible ${label} in staged changes:" >&2
+      printf '%s\n' "$hits" | sed 's/^/    /' >&2
+      fail=1
+    fi
+  done <<'PATTERNS'
+API secret key	sk_(live|prod|test)_[A-Za-z0-9_-]{16,}
+AWS access key ID	AKIA[0-9A-Z]{16}
+GitHub token	gh[pousr]_[A-Za-z0-9]{30,}
+Slack token	xox[abposr]-[A-Za-z0-9-]{10,}
+private key block	-----BEGIN [A-Z ]*PRIVATE KEY-----
+PATTERNS
+fi
+
+# gitleaks is in the base Brewfile, but a freshly cloned machine may not have run
+# `brew bundle` yet, so its absence is a soft miss rather than an error.
+if command -v gitleaks >/dev/null 2>&1; then
+  if ! gitleaks protect --staged --redact --no-banner >/dev/null 2>&1; then
+    echo "pre-commit: gitleaks flagged the staged changes. Details:" >&2
+    gitleaks protect --staged --redact --no-banner 2>&1 | sed 's/^/    /' >&2
+    fail=1
+  fi
+fi
+
+if [ "$fail" -ne 0 ]; then
+  cat >&2 <<'EOF'
+
+Commit blocked. Secrets belong in 1Password and are pulled in at `chezmoi apply`
+time — see dot_config/zsh/private_secrets.zsh.tmpl for the pattern to follow.
+
+If this is a false positive: git commit --no-verify
+EOF
+  exit 1
+fi
+
+exit 0
