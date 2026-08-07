@@ -74,6 +74,10 @@ brew "python@3.12"
 brew "fzf"
 brew "tree" # used to preview directories, and a generally useful utility
 
+# Fast recursive search. Also a runtime dependency of opencode, but declared
+# directly so Homebrew cleanup cannot misclassify it while anomalyco/tap is untrusted.
+brew "ripgrep"
+
 # 1Password CLI
 # Fully qualified on purpose (D8). An untrusted tap is not *loaded*, so a bare
 # `cask "1password-cli"` cannot be resolved on a machine that has not run

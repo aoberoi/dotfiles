@@ -755,7 +755,7 @@ Verification agents and findings:
   git/paths = personal identity and KDE block correct; Azure/secrets/legacy links absent; modes correct
   homebrew = exact four trust entries; all layers pass --no-upgrade; mitmproxy cask 12.2.3
   shell/hooks = pseudo-TTY scratch smoke test and hook pass; authoritative real Terminal launch pending
-  incidental Homebrew behavior = first control-plane install auto-cleaned unneeded ripgrep, shfmt, libiconv, icu4c@77
+  incidental Homebrew behavior = first control-plane install auto-cleaned ripgrep, shfmt, libiconv, icu4c@77; ripgrep was restored and declared directly after trust-aware dependency audit
 Final source commits: recorded on the local integration branch; use `git log -2 --oneline`
 Push/PR status: integration branch remains local; user approval pending
 Old checkout archival path:
