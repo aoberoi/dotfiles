@@ -1,0 +1,796 @@
+#!/usr/bin/env python3
+"""Audit installed Homebrew packages against this machine's effective Brewfile.
+
+The report is deliberately read-only.  Its primary classification uses current
+Homebrew package definitions, not installation receipts.  Receipts are exposed
+only as optional, non-authoritative hints with --receipt-hints.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+import tomllib
+from dataclasses import dataclass, field
+from typing import Iterable, Mapping, Sequence
+
+
+FORMULA = "formula"
+CASK = "cask"
+CORE_TAPS = {"homebrew/core", "homebrew/cask"}
+
+
+class AuditError(Exception):
+    """A failure that should be presented without a traceback."""
+
+    def __init__(self, message: str, exit_code: int = 1):
+        super().__init__(message)
+        self.exit_code = exit_code
+
+
+@dataclass(frozen=True, order=True)
+class PackageID:
+    kind: str
+    name: str
+
+    def __str__(self) -> str:
+        return f"{self.kind}:{self.name}"
+
+
+@dataclass
+class Package:
+    package_id: PackageID
+    display_name: str
+    full_name: str
+    description: str
+    homepage: str
+    source_url: str
+    tap: str
+    dependency_names: list[tuple[str, str]] = field(default_factory=list)
+    receipt_paths: list[Path] = field(default_factory=list)
+
+
+@dataclass
+class Inventory:
+    packages: dict[PackageID, Package]
+    aliases: dict[tuple[str, str], PackageID]
+    graph: dict[PackageID, set[PackageID]]
+    incomplete_metadata: set[PackageID]
+
+
+@dataclass
+class Classification:
+    direct: set[PackageID]
+    managed: set[PackageID]
+    outside: set[PackageID]
+    roots: list[PackageID]
+    cycle_roots: set[PackageID]
+    outside_dependencies: set[PackageID]
+    shared: set[PackageID]
+    unresolved_direct: list[tuple[str, str]]
+
+
+@dataclass
+class TapInfo:
+    name: str
+    remote: str
+    formula_names: set[str]
+    cask_tokens: set[str]
+    command_files: list[str]
+
+
+def run_brew(args: Sequence[str], *, env: Mapping[str, str] | None = None) -> str:
+    command = ["brew", *args]
+    process_env = os.environ.copy()
+    process_env.update({"HOMEBREW_NO_AUTO_UPDATE": "1", "LC_ALL": "C"})
+    if env:
+        process_env.update(env)
+    try:
+        result = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            env=process_env,
+        )
+    except FileNotFoundError as error:
+        raise AuditError("Homebrew was not found on PATH.", 2) from error
+    if result.returncode:
+        detail = result.stderr.strip() or result.stdout.strip() or "no error output"
+        raise AuditError(f"{' '.join(command)} failed:\n{detail}")
+    return result.stdout
+
+
+def read_machine_identity(config_path: Path) -> tuple[str, str]:
+    try:
+        with config_path.open("rb") as handle:
+            config = tomllib.load(handle)
+    except FileNotFoundError as error:
+        raise AuditError(f"chezmoi config not found: {config_path}", 2) from error
+    except tomllib.TOMLDecodeError as error:
+        raise AuditError(f"invalid chezmoi config {config_path}: {error}", 2) from error
+    data = config.get("data", {})
+    role = data.get("role")
+    machine = data.get("machine")
+    if not isinstance(role, str) or not role or not isinstance(machine, str) or not machine:
+        raise AuditError(
+            f"{config_path} must define non-empty data.role and data.machine values", 2
+        )
+    if any("/" in value or value in {".", ".."} for value in (role, machine)):
+        raise AuditError("chezmoi role and machine must be simple path components", 2)
+    return role, machine
+
+
+def effective_layers(home: Path, role: str, machine: str) -> list[tuple[str, Path]]:
+    directory = home / ".config" / "homebrew"
+    candidates = [
+        ("base", directory / "Brewfile"),
+        (f"role-{role}", directory / f"Brewfile.role-{role}"),
+        (f"machine-{machine}", directory / f"Brewfile.machine-{machine}"),
+    ]
+    if not candidates[0][1].is_file():
+        raise AuditError(f"base Brewfile not found: {candidates[0][1]}", 2)
+    return [(label, path) for label, path in candidates if path.is_file()]
+
+
+def write_effective_brewfile(layers: Sequence[tuple[str, Path]], destination: Path) -> None:
+    with destination.open("w", encoding="utf-8") as output:
+        for label, path in layers:
+            output.write(f"# ---- brew_bundle_audit: {label} ({path}) ----\n")
+            output.write(path.read_text(encoding="utf-8"))
+            output.write("\n")
+
+
+def bundle_entries(brewfile: Path) -> dict[str, set[str]]:
+    result: dict[str, set[str]] = {}
+    for kind, option in ((FORMULA, "--formula"), (CASK, "--cask"), ("tap", "--tap")):
+        output = run_brew(["bundle", "list", option, f"--file={brewfile}"])
+        result[kind] = {line.strip() for line in output.splitlines() if line.strip()}
+    return result
+
+
+def _strings(value: object) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        return [item for item in value if isinstance(item, str)]
+    return []
+
+
+def _formula_package(item: dict[str, object], cellar: Path) -> Package:
+    name = str(item["name"])
+    full_name = str(item.get("full_name") or name)
+    urls = item.get("urls") if isinstance(item.get("urls"), dict) else {}
+    stable = urls.get("stable") if isinstance(urls, dict) else {}
+    source_url = str(stable.get("url") or "") if isinstance(stable, dict) else ""
+    dependencies = _strings(item.get("dependencies")) + _strings(
+        item.get("recommended_dependencies")
+    )
+    receipts = sorted((cellar / name).glob("*/INSTALL_RECEIPT.json"))
+    return Package(
+        PackageID(FORMULA, full_name),
+        name,
+        full_name,
+        str(item.get("desc") or ""),
+        str(item.get("homepage") or ""),
+        source_url,
+        str(item.get("tap") or ""),
+        [(FORMULA, dependency) for dependency in dependencies],
+        receipts,
+    )
+
+
+def _cask_package(item: dict[str, object], caskroom: Path) -> Package:
+    token = str(item["token"])
+    full_token = str(item.get("full_token") or token)
+    depends_on = item.get("depends_on") if isinstance(item.get("depends_on"), dict) else {}
+    dependency_names: list[tuple[str, str]] = []
+    if isinstance(depends_on, dict):
+        dependency_names.extend((FORMULA, value) for value in _strings(depends_on.get("formula")))
+        dependency_names.extend((CASK, value) for value in _strings(depends_on.get("cask")))
+    receipt = caskroom / token / ".metadata" / "INSTALL_RECEIPT.json"
+    description = str(item.get("desc") or " / ".join(_strings(item.get("name"))))
+    return Package(
+        PackageID(CASK, full_token),
+        token,
+        full_token,
+        description,
+        str(item.get("homepage") or ""),
+        str(item.get("url") or ""),
+        str(item.get("tap") or ""),
+        dependency_names,
+        [receipt],
+    )
+
+
+def build_inventory(metadata: dict[str, object], cellar: Path, caskroom: Path) -> Inventory:
+    packages: dict[PackageID, Package] = {}
+    aliases: dict[tuple[str, str], PackageID] = {}
+    formula_items = metadata.get("formulae", [])
+    cask_items = metadata.get("casks", [])
+    if not isinstance(formula_items, list) or not isinstance(cask_items, list):
+        raise AuditError("brew info returned an unexpected JSON structure")
+
+    for raw in formula_items:
+        if not isinstance(raw, dict) or "name" not in raw:
+            continue
+        package = _formula_package(raw, cellar)
+        packages[package.package_id] = package
+        names = {
+            package.display_name,
+            package.full_name,
+            *_strings(raw.get("aliases")),
+            *_strings(raw.get("oldnames")),
+        }
+        for name in names:
+            aliases[(FORMULA, name)] = package.package_id
+            aliases[(FORMULA, name.rsplit("/", 1)[-1])] = package.package_id
+
+    for raw in cask_items:
+        if not isinstance(raw, dict) or "token" not in raw:
+            continue
+        package = _cask_package(raw, caskroom)
+        packages[package.package_id] = package
+        names = {
+            package.display_name,
+            package.full_name,
+            *_strings(raw.get("old_tokens")),
+        }
+        for name in names:
+            aliases[(CASK, name)] = package.package_id
+            aliases[(CASK, name.rsplit("/", 1)[-1])] = package.package_id
+
+    graph = {package_id: set() for package_id in packages}
+    for package_id, package in packages.items():
+        for kind, name in package.dependency_names:
+            dependency = aliases.get((kind, name)) or aliases.get((kind, name.rsplit("/", 1)[-1]))
+            if dependency in packages:
+                graph[package_id].add(dependency)
+            # Current definitions can include dependencies that were not selected
+            # when this keg was installed.  They are intentionally filtered out;
+            # absence from the installed inventory is not incomplete metadata.
+    incomplete_metadata = {
+        package_id
+        for package_id, package in packages.items()
+        if not package.description or not package.homepage
+    }
+    return Inventory(packages, aliases, graph, incomplete_metadata)
+
+
+def _definition_candidates(metadata: dict[str, object], taps: Sequence[TapInfo]) -> list[str]:
+    candidates: list[str] = []
+    by_formula: dict[str, set[str]] = {}
+    by_cask: dict[str, set[str]] = {}
+    for tap in taps:
+        for full_name in tap.formula_names:
+            by_formula.setdefault(full_name.rsplit("/", 1)[-1], set()).add(full_name)
+        for full_token in tap.cask_tokens:
+            by_cask.setdefault(full_token.rsplit("/", 1)[-1], set()).add(full_token)
+    for item in metadata.get("formulae", []):
+        if not isinstance(item, dict) or item.get("desc") and item.get("homepage"):
+            continue
+        matches = by_formula.get(str(item.get("name") or ""), set())
+        if len(matches) == 1:
+            candidates.extend(matches)
+    for item in metadata.get("casks", []):
+        if not isinstance(item, dict) or item.get("desc") and item.get("homepage"):
+            continue
+        matches = by_cask.get(str(item.get("token") or ""), set())
+        if len(matches) == 1:
+            candidates.extend(matches)
+    return sorted(set(candidates))
+
+
+def _merge_definitions(metadata: dict[str, object], definitions: dict[str, object]) -> None:
+    for collection, key in (("formulae", "name"), ("casks", "token")):
+        installed = metadata.get(collection, [])
+        enriched = definitions.get(collection, [])
+        if not isinstance(installed, list) or not isinstance(enriched, list):
+            continue
+        by_name = {
+            str(item.get(key)): item for item in enriched if isinstance(item, dict) and item.get(key)
+        }
+        for index, item in enumerate(installed):
+            if not isinstance(item, dict):
+                continue
+            replacement = by_name.get(str(item.get(key)))
+            if replacement is not None:
+                installed[index] = replacement
+
+
+def load_inventory(taps: Sequence[TapInfo]) -> Inventory:
+    try:
+        metadata = json.loads(run_brew(["info", "--json=v2", "--installed"]))
+        candidates = _definition_candidates(metadata, taps)
+        if candidates:
+            try:
+                definitions = json.loads(
+                    run_brew(
+                        ["info", "--json=v2", *candidates],
+                        env={"HOMEBREW_NO_INSTALL_FROM_API": "1"},
+                    )
+                )
+            except (AuditError, json.JSONDecodeError):
+                definitions = {}
+            if isinstance(definitions, dict):
+                _merge_definitions(metadata, definitions)
+        cellar = Path(run_brew(["--cellar"]).strip())
+        caskroom = Path(run_brew(["--caskroom"]).strip())
+    except json.JSONDecodeError as error:
+        raise AuditError(f"brew info returned invalid JSON: {error}") from error
+    if not isinstance(metadata, dict):
+        raise AuditError("brew info returned an unexpected JSON value")
+    return build_inventory(metadata, cellar, caskroom)
+
+
+def closure(graph: Mapping[PackageID, set[PackageID]], roots: Iterable[PackageID]) -> set[PackageID]:
+    found: set[PackageID] = set()
+    stack = list(roots)
+    while stack:
+        node = stack.pop()
+        if node in found:
+            continue
+        found.add(node)
+        stack.extend(graph.get(node, ()))
+    return found
+
+
+def classify(inventory: Inventory, declared: Mapping[str, set[str]]) -> Classification:
+    direct: set[PackageID] = set()
+    unresolved_direct: list[tuple[str, str]] = []
+    for kind in (FORMULA, CASK):
+        for name in declared.get(kind, set()):
+            package_id = inventory.aliases.get((kind, name)) or inventory.aliases.get(
+                (kind, name.rsplit("/", 1)[-1])
+            )
+            if package_id is None:
+                unresolved_direct.append((kind, name))
+            else:
+                direct.add(package_id)
+
+    managed = closure(inventory.graph, direct)
+    installed = set(inventory.packages)
+    outside = installed - managed
+    incoming_from_outside = {node: 0 for node in outside}
+    for source in outside:
+        for dependency in inventory.graph.get(source, ()):
+            if dependency in outside:
+                incoming_from_outside[dependency] += 1
+    roots = sorted(node for node, count in incoming_from_outside.items() if count == 0)
+
+    # Every ordinary root covers one component.  Any nodes left over are in a
+    # rootless cycle; choose one deterministic representative so they remain visible.
+    covered = closure(
+        {node: {dep for dep in inventory.graph[node] if dep in outside} for node in outside},
+        roots,
+    )
+    cycle_roots: set[PackageID] = set()
+    remaining = outside - covered
+    while remaining:
+        representative = min(remaining)
+        roots.append(representative)
+        cycle_roots.add(representative)
+        component = closure(inventory.graph, [representative]) & outside
+        remaining -= component
+
+    roots.sort()
+    outside_dependencies = outside - set(roots)
+    shared: set[PackageID] = set()
+    for root in roots:
+        reachable = closure(inventory.graph, [root])
+        shared.update(reachable & (managed - direct))
+    return Classification(
+        direct,
+        managed,
+        outside,
+        roots,
+        cycle_roots,
+        outside_dependencies,
+        shared,
+        sorted(unresolved_direct),
+    )
+
+
+def receipt_hint(package: Package) -> str:
+    values: list[bool] = []
+    saw_missing = False
+    saw_missing_field = False
+    saw_invalid = False
+    for path in package.receipt_paths:
+        if not path.is_file():
+            saw_missing = True
+            continue
+        try:
+            with path.open("r", encoding="utf-8") as handle:
+                receipt = json.load(handle)
+        except (OSError, json.JSONDecodeError):
+            saw_invalid = True
+            continue
+        value = receipt.get("installed_on_request") if isinstance(receipt, dict) else None
+        if isinstance(value, bool):
+            values.append(value)
+        else:
+            saw_missing_field = True
+    if saw_invalid:
+        return "invalid"
+    if saw_missing:
+        return "missing"
+    if saw_missing_field:
+        return "missing installed_on_request"
+    if not values:
+        return "missing"
+    if len(set(values)) > 1:
+        return "conflicting versions"
+    return "on request" if values[0] else "installed as dependency"
+
+
+def receipt_assessment(hint: str) -> str:
+    if hint == "on request":
+        return "strong candidate for a past top-level installation"
+    if hint == "installed as dependency":
+        return "likely an orphaned dependency"
+    return "no historical inference (receipt evidence is incomplete)"
+
+
+def package_label(
+    node: PackageID,
+    classification: Classification,
+    *,
+    is_root: bool = False,
+) -> str:
+    if node in classification.direct:
+        return "Brewfile entry"
+    if node in classification.shared:
+        return "shared with Brewfiles"
+    if is_root and node in classification.cycle_roots:
+        return "top-level cycle component"
+    if is_root:
+        return "top-level candidate"
+    return "dependency"
+
+
+def display_name(package: Package) -> str:
+    return package.full_name if "/" in package.full_name else package.display_name
+
+
+def brewfile_declaration(package: Package) -> str:
+    """Return a copyable declaration, retaining third-party qualification."""
+    directive = "brew" if package.package_id.kind == FORMULA else "cask"
+    name = package.full_name if "/" in package.full_name else package.display_name
+    return f'{directive} "{name}"'
+
+
+def render_package_details(package: Package, indent: str, *, verbose: bool) -> list[str]:
+    lines: list[str] = []
+    if package.description:
+        lines.append(f"{indent}{package.description}")
+    if package.homepage:
+        lines.append(f"{indent}Homepage: {package.homepage}")
+    if verbose and package.source_url and package.source_url != package.homepage:
+        lines.append(f"{indent}Source: {package.source_url}")
+    return lines
+
+
+def render_tree(
+    root: PackageID,
+    inventory: Inventory,
+    classification: Classification,
+    *,
+    verbose: bool,
+    receipt_hints: bool,
+) -> list[str]:
+    output: list[str] = []
+    shown: set[PackageID] = {root}
+    active: set[PackageID] = {root}
+    root_package = inventory.packages[root]
+    heading = (
+        f"{display_name(root_package)} [{root_package.package_id.kind}] "
+        f"[{package_label(root, classification, is_root=True)}]"
+    )
+    if receipt_hints:
+        hint = receipt_hint(root_package)
+        heading += f" [receipt: {hint}]"
+    output.append(heading)
+    output.extend(render_package_details(root_package, "  ", verbose=verbose))
+    output.append(f"  Add to a Brewfile: {brewfile_declaration(root_package)}")
+    if receipt_hints:
+        output.append(f"  Assessment: {receipt_assessment(hint)}")
+
+    def visit(parent: PackageID, prefix: str) -> None:
+        children = sorted(
+            inventory.graph.get(parent, ()),
+            key=lambda node: (display_name(inventory.packages[node]).lower(), node.kind),
+        )
+        for index, child in enumerate(children):
+            last = index == len(children) - 1
+            connector = "└── " if last else "├── "
+            package = inventory.packages[child]
+            label = package_label(child, classification)
+            suffix = ""
+            should_descend = child not in classification.direct and child not in classification.shared
+            if child in active:
+                suffix = " [cycle: already visited]"
+                should_descend = False
+            elif child in shown:
+                suffix = " [already shown]"
+                should_descend = False
+            line = (
+                f"{prefix}{connector}{display_name(package)} "
+                f"[{package.package_id.kind}] [{label}]{suffix}"
+            )
+            if receipt_hints and verbose:
+                line += f" [receipt: {receipt_hint(package)}]"
+            output.append(line)
+            detail_indent = prefix + ("    " if last else "│   ")
+            if verbose:
+                output.extend(render_package_details(package, detail_indent, verbose=True))
+            if should_descend:
+                shown.add(child)
+                active.add(child)
+                visit(child, detail_indent)
+                active.remove(child)
+
+    visit(root, "  ")
+    return output
+
+
+def load_taps() -> list[TapInfo]:
+    names = [line.strip() for line in run_brew(["tap"]).splitlines() if line.strip()]
+    if not names:
+        return []
+    try:
+        raw = json.loads(run_brew(["tap-info", "--json", *names]))
+    except json.JSONDecodeError as error:
+        raise AuditError(f"brew tap-info returned invalid JSON: {error}") from error
+    if not isinstance(raw, list):
+        raise AuditError("brew tap-info returned an unexpected JSON value")
+    taps: list[TapInfo] = []
+    for item in raw:
+        if not isinstance(item, dict) or not isinstance(item.get("name"), str):
+            continue
+        taps.append(
+            TapInfo(
+                item["name"],
+                str(item.get("remote") or ""),
+                set(_strings(item.get("formula_names"))),
+                set(_strings(item.get("cask_tokens"))),
+                _strings(item.get("command_files")),
+            )
+        )
+    return sorted(taps, key=lambda tap: tap.name.lower())
+
+
+def tap_report(
+    taps: Sequence[TapInfo],
+    declared_taps: set[str],
+    inventory: Inventory,
+    classification: Classification,
+) -> tuple[list[str], int]:
+    lines = ["Installed taps", "=============="]
+    apparently_unused = 0
+    for tap in taps:
+        package_ids = {
+            package_id
+            for package_id, package in inventory.packages.items()
+            if package.tap.lower() == tap.name.lower()
+        }
+        for name in tap.formula_names:
+            package_id = inventory.aliases.get((FORMULA, name)) or inventory.aliases.get(
+                (FORMULA, name.rsplit("/", 1)[-1])
+            )
+            if package_id is not None:
+                package_ids.add(package_id)
+        for name in tap.cask_tokens:
+            package_id = inventory.aliases.get((CASK, name)) or inventory.aliases.get(
+                (CASK, name.rsplit("/", 1)[-1])
+            )
+            if package_id is not None:
+                package_ids.add(package_id)
+        reasons: list[str] = []
+        if tap.name.lower() in {name.lower() for name in declared_taps}:
+            reasons.append("Explicit Brewfile tap entry")
+        direct = sorted(package_ids & classification.direct)
+        outside = sorted(package_ids & classification.outside)
+        managed_dependencies = sorted(package_ids & (classification.managed - classification.direct))
+        if direct:
+            reasons.append(
+                "Supports Brewfile "
+                + ", ".join(display_name(inventory.packages[node]) for node in direct)
+            )
+        if outside:
+            reasons.append(
+                "Supports outside "
+                + ", ".join(display_name(inventory.packages[node]) for node in outside)
+            )
+        if managed_dependencies:
+            reasons.append(
+                "Supports managed dependency "
+                + ", ".join(display_name(inventory.packages[node]) for node in managed_dependencies)
+            )
+        if tap.command_files:
+            reasons.append(f"Provides {len(tap.command_files)} Homebrew command(s)")
+        if not reasons:
+            reasons.append("Assessment: apparently unused")
+            apparently_unused += 1
+        lines.append("")
+        lines.append(tap.name)
+        if tap.remote:
+            lines.append(f"  Repository: {tap.remote}")
+        lines.extend(f"  {reason}" for reason in reasons)
+    if not taps:
+        lines.append("(none)")
+    return lines, apparently_unused
+
+
+def render_report(
+    layers: Sequence[tuple[str, Path]],
+    declared: Mapping[str, set[str]],
+    inventory: Inventory,
+    classification: Classification,
+    taps: Sequence[TapInfo],
+    *,
+    verbose: bool,
+    receipt_hints: bool,
+) -> str:
+    lines = ["Effective Brewfile", "=================="]
+    lines.extend(f"  {label}: {path}" for label, path in layers)
+    lines.extend(
+        [
+            "",
+            "Dependency relationships use current Homebrew definitions; they may differ",
+            "from those of an older installed version.",
+            "",
+            "Outside the effective Brewfile",
+            "==============================",
+        ]
+    )
+    if classification.roots:
+        groups = ((FORMULA, "Formulae"), (CASK, "Casks"))
+        rendered_group = False
+        for kind, title in groups:
+            roots = [root for root in classification.roots if root.kind == kind]
+            if not roots:
+                continue
+            if rendered_group:
+                lines.append("")
+            lines.extend([title, "-" * len(title)])
+            for index, root in enumerate(roots):
+                lines.append("")
+                lines.extend(
+                    render_tree(
+                        root,
+                        inventory,
+                        classification,
+                        verbose=verbose,
+                        receipt_hints=receipt_hints,
+                    )
+                )
+            rendered_group = True
+    else:
+        lines.append("(none)")
+
+    unclassified: set[PackageID] = set(inventory.incomplete_metadata)
+    if classification.unresolved_direct or unclassified:
+        lines.extend(["", "Unclassified or incomplete metadata", "================================="])
+        for kind, name in classification.unresolved_direct:
+            lines.append(f"  {kind}:{name}: declared but not installed or not resolved")
+        for node in sorted(unclassified):
+            package = inventory.packages[node]
+            lines.append(f"  {display_name(package)}: description or homepage unavailable")
+
+    taps_text, apparently_unused = tap_report(
+        taps, declared.get("tap", set()), inventory, classification
+    )
+    lines.extend(["", *taps_text])
+    formula_roots = sum(root.kind == FORMULA for root in classification.roots)
+    cask_roots = sum(root.kind == CASK for root in classification.roots)
+    lines.extend(
+        [
+            "",
+            "Summary",
+            "=======",
+            f"{formula_roots} top-level formula candidates",
+            f"{cask_roots} top-level cask candidates",
+            f"{len(classification.outside_dependencies)} outside dependencies",
+            f"{len(classification.shared)} dependencies shared with Brewfiles",
+            f"{apparently_unused} apparently unused taps",
+            f"{len(unclassified) + len(classification.unresolved_direct)} unclassified items",
+        ]
+    )
+    if receipt_hints:
+        lines.extend(
+            [
+                "",
+                "Receipt hints are historical evidence only. 'On request' can result from",
+                "brew install, an earlier Brewfile, or brew tab; it is not proof of a manual install.",
+            ]
+        )
+    return "\n".join(lines) + "\n"
+
+
+def write_stdout(output: str) -> bool:
+    """Write a report, quietly handling an early-closing pipeline consumer."""
+    try:
+        sys.stdout.write(output)
+        return True
+    except BrokenPipeError:
+        # Replace the broken descriptor so Python's shutdown flush cannot emit
+        # another BrokenPipeError after this one has been handled.
+        try:
+            stdout_fd = sys.stdout.fileno()
+            null_fd = os.open(os.devnull, os.O_WRONLY)
+            try:
+                os.dup2(null_fd, stdout_fd)
+            finally:
+                os.close(null_fd)
+        except (AttributeError, OSError):
+            pass
+        return False
+
+
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Show installed packages outside this machine's base, role, and machine Brewfiles "
+            "as dependency trees. This command never changes Homebrew state."
+        )
+    )
+    parser.add_argument(
+        "--receipt-hints",
+        action="store_true",
+        help="annotate candidates with optional installed_on_request receipt evidence",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help=(
+            "show dependency descriptions, homepages, and source URLs; also show dependency "
+            "receipt hints when combined with --receipt-hints"
+        ),
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = parse_args(argv)
+    try:
+        home = Path.home()
+        config_path = Path(
+            os.environ.get("CHEZMOI_CONFIG_FILE", home / ".config" / "chezmoi" / "chezmoi.toml")
+        )
+        role, machine = read_machine_identity(config_path)
+        layers = effective_layers(home, role, machine)
+        with tempfile.TemporaryDirectory(prefix="brew-bundle-audit-") as temporary:
+            brewfile = Path(temporary) / "Brewfile"
+            write_effective_brewfile(layers, brewfile)
+            declared = bundle_entries(brewfile)
+        taps = load_taps()
+        inventory = load_inventory(taps)
+        classification = classify(inventory, declared)
+        write_stdout(
+            render_report(
+                layers,
+                declared,
+                inventory,
+                classification,
+                taps,
+                verbose=args.verbose,
+                receipt_hints=args.receipt_hints,
+            )
+        )
+        return 0
+    except AuditError as error:
+        print(f"brew_bundle_audit: {error}", file=sys.stderr)
+        return error.exit_code
+    except KeyboardInterrupt:
+        print("brew_bundle_audit: interrupted", file=sys.stderr)
+        return 130
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

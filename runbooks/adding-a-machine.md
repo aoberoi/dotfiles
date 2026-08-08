@@ -58,7 +58,7 @@ Git author email?
 | Prompt | Stored as | What it drives |
 | --- | --- | --- |
 | Machine short name | `.machine` | Selects `Brewfile.machine-<machine>`. Filename-safe because it is literally part of a filename. |
-| Role | `.role` | Selects `Brewfile.role-<role>`; gates the role-specific git credential blocks and the 1Password-backed secrets file. Free text validated against the two choices. |
+| Role | `.role` | Selects `Brewfile.role-<role>`; gates the personal KDE credential block and the 1Password-backed secrets file. Free text validated against the two choices. |
 | Git author email | `.email` | `user.email` in `~/.config/git/config`. |
 
 For the personal Mac the answers are, for example, `mbp-personal` / `personal` /
@@ -311,7 +311,8 @@ chezmoi diff                    # what an apply would actually change
 | --- | --- | --- |
 | Homebrew role layer | `Brewfile.role-personal` — `exiftool`, `ffmpeg`, `bento4`, `yt-dlp`, `makemkv` (cask), `deskflow` (tap + cask) | `Brewfile.role-work` — `chanzuckerberg/tap/{argus,aws-oidc}`, `awscli`, `kubernetes-cli` |
 | `~/.config/zsh/secrets.zsh` | **not written at all** | rendered `0600` from 1Password |
-| git credential block | `https://invent.kde.org` → `provider = generic` | `https://dev.azure.com` → `useHttpPath = true` |
+| shared GCM default | `https://dev.azure.com` → `useHttpPath = true` | `https://dev.azure.com` → `useHttpPath = true` |
+| role-specific git credential block | `https://invent.kde.org` → `provider = generic` | none |
 | git `user.email` | whatever you answered at init | ditto — this is the canonical demo of why the prompt exists |
 | Entries to trust | two base formulae + base 1Password cask + personal Deskflow cask | two base formulae + base 1Password cask + two CZI formulae |
 
@@ -373,7 +374,7 @@ Open a fresh terminal window — a real login shell, not `zsh -c` — and check:
 | `git cl` | resolves to `~/.local/bin/git_blobless_clone`. |
 | <kbd>Ctrl</kbd>+<kbd>R</kbd> | `bindkey "^R"` reports `fzf-history-widget`. Confirms `eval "$(fzf --zsh)"`. |
 | `command -v cargo` | `/opt/homebrew/opt/rustup/bin/cargo`; then `cargo --version` prints a version *without* downloading anything (proves §3.3 was done). |
-| `git config --list --show-origin` | the right email, and the role-appropriate credential block. |
+| `git config --list --show-origin` | the right email; the Azure `useHttpPath` GCM default on every machine; and the KDE provider only on personal machines. |
 | `role = work` only: `echo ${KG_API_KEY:+set}` | `set`. On personal, expect empty and no `~/.config/zsh/secrets.zsh`. |
 
 ### Then commit anything you added

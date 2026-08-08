@@ -33,8 +33,8 @@
 	# GCM's cask ships a .pkg that installs to /usr/local even on Apple Silicon;
 	# /opt/homebrew/share/gcm-core does not exist. This path is correct.
 	helper = /usr/local/share/gcm-core/git-credential-manager
-{{- if eq .role "work" }}
-# Azure DevOps is work-only, and GCM needs the path to tell org accounts apart.
+# GCM adds this host-specific setting whenever it configures itself, whether or
+# not Azure Repos is in use. It is inert for every other host; for dev.azure.com,
+# GCM needs the URL path to tell organizations apart.
 [credential "https://dev.azure.com"]
 	useHttpPath = true
-{{- end }}

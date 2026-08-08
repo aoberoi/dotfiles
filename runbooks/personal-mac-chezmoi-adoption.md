@@ -396,7 +396,7 @@ Expected personal-machine behavior:
 
 - base, `role-personal`, and `machine-iris` are selected;
 - `role-work` and `machine-czimacos6457` are ignored;
-- no Azure credential block is rendered;
+- the shared Azure `useHttpPath` GCM default is rendered even though this machine does not use Azure Repos;
 - the KDE credential block is rendered;
 - `~/.config/zsh/secrets.zsh` is not written;
 - repo documentation is ignored as a target.
@@ -600,7 +600,7 @@ Expected:
 
 - personal email;
 - KDE provider `generic`;
-- no Azure `useHttpPath` value;
+- Azure `useHttpPath` is `true`, as GCM configures on every machine;
 - configuration originates from `~/.config/git/config`, not `~/.gitconfig`;
 - `git cl` resolves through `~/.local/bin/git_blobless_clone`.
 
@@ -752,7 +752,7 @@ File-only apply result: exit 0; managed targets are real files/directories; lega
 Full apply result: exit 0; base/personal/iris layers complete; macOS defaults ran; hook wired
 Verification agents and findings:
   chezmoi = source/branch correct; status and verify empty; doctor exit 0 with sandbox-only network/hardlink limitations
-  git/paths = personal identity and KDE block correct; Azure/secrets/legacy links absent; modes correct
+  git/paths = personal identity and KDE block correct; shared Azure GCM default present; secrets/legacy links absent; modes correct
   homebrew = exact four trust entries; all layers pass --no-upgrade; mitmproxy cask 12.2.3
   shell/hooks = pseudo-TTY scratch smoke test and hook pass; authoritative real Terminal launch pending
   incidental Homebrew behavior = first control-plane install auto-cleaned ripgrep, shfmt, libiconv, icu4c@77; ripgrep was restored and declared directly after trust-aware dependency audit

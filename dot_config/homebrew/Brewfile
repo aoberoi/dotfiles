@@ -44,6 +44,9 @@ brew "antidote"
 # that hook's own built-in patterns (P5-3).
 brew "gitleaks"
 
+# Password generator
+brew "pwgen"
+
 # Replacement for cat and man, supporting colorized syntax highlighting
 brew "bat"
 tap "eth-p/software"
@@ -54,6 +57,11 @@ tap "eth-p/software"
 # Trusted on czimacos6457 on 2026-08-06. Note `alias man='batman'` in zshrc depends
 # on this formula, so an untrusted machine has a broken `man`.
 brew "eth-p/software/bat-extras-batman"
+
+# Create and run Linux containers using lightweight virtual machines
+brew "container"
+# Generic machine emulator and virtualizer
+brew "qemu"
 
 # jq - macOS has this built in, but managing it through brew would allow for updating easier
 brew "jq"
@@ -68,11 +76,15 @@ brew "caddy"
 # Modern Python. NOTE: `python3` on PATH is not necessarily this version — other
 # formulae pull in newer Pythons as dependencies. Check with `python3 --version`.
 # https://docs.brew.sh/Homebrew-and-Python
-brew "python@3.12"
+brew "python@3"
+# Extremely fast Python package installer and resolver, written in Rust
+brew "uv"
 
 # fzf - Fuzzy Finder
 brew "fzf"
 brew "tree" # used to preview directories, and a generally useful utility
+# Show ps output as a tree
+brew "pstree"
 
 # Fast recursive search. Also a runtime dependency of opencode, but declared
 # directly so Homebrew cleanup cannot misclassify it while anomalyco/tap is untrusted.
@@ -110,3 +122,4 @@ cask "kap"
 # AI
 cask "claude-code"
 brew "anomalyco/tap/opencode"
+brew "summarize"

@@ -152,7 +152,7 @@ Whichever is chosen, `_cargo` must **not** land in `exact_dot_zfunc/` (§4.5).
 ├── dot_config/
 │   ├── ghostty/config
 │   ├── git/
-│   │   ├── config.tmpl                # templated: email, role-specific credential helpers
+│   │   ├── config.tmpl                # templated: email, personal KDE block, shared GCM defaults
 │   │   └── ignore                     # git reads ~/.config/git/ignore natively
 │   ├── homebrew/                      # three layers, applied in order (D3)
 │   │   ├── Brewfile                   # base — every machine
@@ -232,7 +232,7 @@ Consequently the `~/.dotfiles` symlink itself is dropped.
 | **Needless subprocess per login** | `zsh/zprofile`: `export PATH=$PATH:$(go env GOPATH)/bin` while `GOPATH` is set on the line above | `export PATH="$PATH:$GOPATH/bin"` |
 | ~~**Intel-only path**~~ — **RETRACTED, verified 2026-08-06** | `git/gitconfig`: `helper = /usr/local/share/gcm-core/git-credential-manager` | **Not a defect.** The GCM cask ships a `.pkg` that installs to `/usr/local/share/gcm-core` on Apple Silicon too; `/opt/homebrew/share/gcm-core` does not exist. GCM 2.9.1 is installed and `git config --get-all credential.helper` resolves correctly (`osxkeychain` → empty reset → GCM). **Leave the gitconfig path alone.** |
 | **Brewfile disagrees with reality on GCM** | `brew/Brewfile` comments out `cask "git-credential-manager"` with *"This installation is failing as of 4/13/2026"* — but the cask **is installed** (2.9.1) and working | Re-enable the entry and delete the stale comment. A fresh machine currently would not get GCM, silently breaking git auth. |
-| **Role-specific credential config** | `git/gitconfig`: `[credential "https://dev.azure.com"]`, `[credential "https://invent.kde.org"]` | Move behind `{{ if eq .role "work" }}` / `"personal"` guards in `config.tmpl`. |
+| ~~**Role-specific credential config**~~ — **CORRECTED 2026-08-08** | `git/gitconfig`: `[credential "https://dev.azure.com"]`, `[credential "https://invent.kde.org"]` | Guard only the KDE block with `role = personal`. Keep GCM's `dev.azure.com` `useHttpPath` default on every GCM machine: `configure` adds it universally, it is inert for other hosts, and its presence does not imply Azure Repos usage. The earlier work-only assumption was false. |
 | **Wrong git email** | `git/gitconfig` hardcodes `aoberoi@gmail.com`; work machine needs `aoberoi@chanzuckerberg.com` | Template from the init prompt. This is the canonical demo of why D4 matters. |
 | **Checked-in `_rustup` shadows a fresher copy** | `zsh/zfunc/_rustup` (27 KB, generated from an older rustup) | **Delete it.** See §4.5 — Homebrew already ships this file and it is already on `FPATH`. |
 | **Obsolete `rustup-init` instruction** | `brew/README.md` says to run `rustup-init --no-modify-path` | The Homebrew formula (rustup 1.29.0) states: *"This formula no longer provides `rustup-init`."* Replace with the current caveat: put `$(brew --prefix rustup)/bin` on `$PATH`. |
@@ -662,7 +662,7 @@ These four work tools are exactly the case D3/D4 were designed for, and they mak
 | ID | Task | Acceptance |
 | --- | --- | --- |
 | P2-1 | zsh: `dot_zshrc`, `dot_zprofile` + §4.4 fixes + §4.3 rewrites | New shell starts clean; no `~/.dotfiles` refs remain |
-| P2-2 | git: `dot_config/git/config.tmpl` + `dot_config/git/ignore`; drop `excludesfile`; role-guard credential blocks | `git config --list --show-origin` shows expected values |
+| P2-2 | git: `dot_config/git/config.tmpl` + `dot_config/git/ignore`; drop `excludesfile`; role-guard the KDE block and retain GCM's shared Azure default | `git config --list --show-origin` shows expected values |
 | P2-3 | vim + ghostty straight ports | Files match byte-for-byte |
 | P2-4 | `exact_dot_zfunc/` + `dot_local/bin/` (mind the `exact_` asymmetry) | `sizeup`, `fnm_upgrade` autoload; `git cl` works |
 
@@ -753,7 +753,7 @@ find /tmp/chezmoi-test
 ```
 Compare against the current `$HOME` to catch omissions.
 
-**Per-machine matrix.** Re-run `chezmoi execute-template` with each `machine`/`role` combination and confirm the git email, credential blocks, and Brewfile overlay selection each change as intended. This is the feature being bought — test it explicitly.
+**Per-machine matrix.** Re-run `chezmoi execute-template` with each `machine`/`role` combination and confirm the git email changes, the KDE block is personal-only, the Azure GCM default is always present, and Brewfile overlay selection changes as intended. This is the feature being bought — test it explicitly.
 
 **Post-cutover:** new login shell has correct `$PATH`, completions, prompt, and `$KG_API_KEY`; `git config` resolves correctly; `brew bundle check` passes; `chezmoi verify` is silent.
 

@@ -14,3 +14,22 @@ cask "mitmproxy"
 
 # Packet capture and protocol analysis for local networking work.
 cask "wireshark-app"
+
+##
+# Trying these out
+##
+
+# Netwide Assembler (NASM) is an 80x86 assembler
+brew "nasm"
+# Package compiler and linker metadata toolkit
+brew "pkgconf"
+
+# Replacement for Docker Desktop
+cask "orbstack"
+
+# Port of OpenAI's Whisper model in C/C++
+brew "whisper-cpp"
+
+# CLI for Entire
+tap "entireio/tap"
+  cask "entireio/tap/entire"

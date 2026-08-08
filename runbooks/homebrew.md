@@ -183,6 +183,62 @@ I can also explicitly find all the packages that have no dependents using the fo
 $ brew leaves
 ```
 
+#### Audit packages outside the Brewfiles
+
+`brew_bundle_audit` compares installed formulae, casks and taps with the effective package set
+for this machine, then prints the packages outside that set as dependency trees:
+
+```
+$ brew_bundle_audit
+$ brew_bundle_audit --verbose
+$ brew_bundle_audit --receipt-hints
+```
+
+The effective Brewfile is a temporary concatenation of the deployed base file and the exact role
+and machine overlays selected by `data.role` and `data.machine` in
+`~/.config/chezmoi/chezmoi.toml`. It never uses overlay globs, so a stale copy for another machine
+cannot enter the comparison. Homebrew itself interprets the combined file; the command does not
+try to parse Brewfile Ruby syntax.
+
+The labels distinguish current dependency topology from historical intent:
+
+| Label | Meaning |
+| --- | --- |
+| `top-level candidate` | Outside the Brewfiles and not required by another outside package. This is the receipt-independent approximation of a direct install. |
+| `dependency` | Outside the Brewfiles, but reachable from another outside package. |
+| `shared with Brewfiles` | Required by the outside tree and also transitively required by a Brewfile package. |
+| `Brewfile entry` | Directly declared in one of the effective layers. The tree stops at this node. |
+| `top-level cycle component` | Deterministic representative of an unexpected rootless dependency cycle. |
+
+The topology is calculated from current Homebrew formula and cask definitions, not from
+`INSTALL_RECEIPT.json`. This keeps the normal report useful when receipts are missing, but the
+current definition can differ from the dependencies of an older installed version. A leaf is also
+only a candidate: an abandoned dependency can become a leaf, while a package installed directly
+can later become another package's dependency.
+
+`--receipt-hints` adds `installed_on_request` as separate historical evidence. It does not change
+any root, dependency, or sharing classification. The possible hints are `on request`, `installed as
+dependency`, `missing`, `missing installed_on_request`, `invalid`, and `conflicting versions`.
+`on request` means Homebrew was told at some point to retain that package; it can result from
+`brew install`, an earlier Brewfile, or `brew tab`, so it is not proof of a manual install. A
+missing or malformed receipt is reported as unknown, never converted to `false`. Formula receipts
+live in versioned Cellar kegs and cask receipts live under the cask's `.metadata` directory, so
+uninstalling or cleaning old versions can remove them.
+
+Outside candidates are grouped into formulae and casks, and every tree node carries its package
+type. Each top-level candidate also shows a copyable `brew "..."` or `cask "..."` declaration;
+third-party packages stay fully qualified so the suggestion preserves this repo's tap-trust rules.
+Descriptions and homepages are shown for review candidates. `--verbose` also shows them (plus
+source/download URLs and receipt hints, when enabled) for dependency nodes. The tap section treats
+a tap as used when it is explicitly declared, provides a Brewfile package, provides an outside
+package, or supplies Homebrew commands; lack of a `tap` line by itself does not make it unused.
+
+The audit command is read-only. It sets `HOMEBREW_NO_AUTO_UPDATE=1` and never runs install,
+uninstall, cleanup, autoremove, trust, or `brew tab`. Finding candidates is a successful audit and
+therefore exits zero; Homebrew/metadata failures exit 1 and invalid local configuration exits 2.
+`brew bundle dump` is not an equivalent receipt-independent view: its formula selection also uses
+the receipt's `installed_on_request` flag.
+
 ## Python
 
 Homebrew separates 3.y (where `y` is considered major) releases from one another. Therefore, when you have multiple

@@ -18,8 +18,13 @@ brew "exiftool"
 brew "ffmpeg" # dependency for merging fragments and tracks
 brew "bento4" # package that contains mp4decrypt
 brew "yt-dlp" # fork of Youtube-DL with more features and built on modern Python
-# MakeMVK is used to convert ripped DVD images and discs into MKV files without transcoding the media
-cask "makemkv"
+cask "mediainfo"
+cask "spatial"
+
+# MakeMKV remains installed manually for decrypting DVD and Blu-ray discs;
+# MKVToolNix does not replace that capability. MakeMKV's Homebrew cask is deprecated,
+# so it is deliberately not declared in this Brewfile.
+cask "mkvtoolnix-app"
 
 # Keyboard and mouse sharing
 # DECIDED 2026-08-06: personal role only. deskflow is a server/client app, so

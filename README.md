@@ -53,7 +53,7 @@ checkout elsewhere. `chezmoi cd` and `chezmoi source-path` are how you find it.
 | Prompt | Example | Used for |
 | --- | --- | --- |
 | Machine short name (filename-safe) | `czimacos6457` | Selects `Brewfile.machine-<machine>` |
-| Role (`personal` / `work`) | `work` | Selects `Brewfile.role-<role>`, gates the git credential blocks and the secrets file |
+| Role (`personal` / `work`) | `work` | Selects `Brewfile.role-<role>`, gates the personal KDE credential block and the secrets file |
 | Git author email | `me@example.com` | `user.email` in `~/.config/git/config` |
 
 The answers land in `~/.config/chezmoi/chezmoi.toml`, which is per-machine and deliberately not in this repo.
@@ -287,8 +287,9 @@ separate deliberate act (`brew upgrade`, or `brew bundle upgrade --file=…`).
 
 ### Other per-machine differences
 
-* `dot_config/git/config.tmpl` templates `user.email` from the init prompt, and guards the Azure DevOps and KDE
-  credential blocks behind `role`.
+* `dot_config/git/config.tmpl` templates `user.email` from the init prompt and guards the KDE credential block
+  behind `role = personal`. GCM's benign `dev.azure.com` `useHttpPath` default is present on every machine that
+  uses GCM; it does not imply that the machine uses Azure Repos.
 * `dot_config/zsh/private_secrets.zsh.tmpl` renders `~/.config/zsh/secrets.zsh` only on `role = work`.
 
 ### Machine-local config is not in this repo
