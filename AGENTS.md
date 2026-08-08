@@ -66,7 +66,7 @@ applies) or edit the source file here and `chezmoi apply`.
 ├── dot_config/
 │   ├── ghostty/config
 │   ├── git/
-│   │   ├── config.tmpl                    templated: email, role-gated credential blocks
+│   │   ├── config.tmpl                    templated: email, personal KDE block, shared GCM defaults
 │   │   └── ignore                         git reads ~/.config/git/ignore natively
 │   ├── homebrew/                          three layers, applied in order (D3)
 │   │   ├── Brewfile                       base — every machine
@@ -430,8 +430,8 @@ Add `--source="$PWD"` to all of the above if `chezmoi source-path` is not this c
 
 **Test the per-machine matrix when you touch anything role- or machine-gated.** Varying
 `.role` and `.machine` is the feature being bought; exercise both values and confirm the git
-email, the credential blocks, the secrets file and the Brewfile overlay selection each change
-as intended.
+email, the personal-only KDE credential block, the shared Azure GCM default, the secrets file
+and the Brewfile overlay selection each behave as intended.
 
 **Copy-mode drift.** Because targets are copies, anything that rewrites a managed file in
 `$HOME` (e.g. `git config --global …` writing `~/.config/git/config`) is silently reverted by
