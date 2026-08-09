@@ -122,4 +122,3 @@ cask "kap"
 # AI
 cask "claude-code"
 brew "anomalyco/tap/opencode"
-brew "summarize"
