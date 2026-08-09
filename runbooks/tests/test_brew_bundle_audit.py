@@ -1,3 +1,21 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# ///
+#
+# The same floor as the script under test, for a different reason.  This file
+# loads the script with SourceFileLoader.exec_module(), so `import tomllib` runs
+# in *this* interpreter and the script's own shebang is never consulted — the
+# floor has to be restated here or the tests can be run under a Python the script
+# could not survive.
+#
+# That only holds if this file is executed directly:
+#
+#     ./runbooks/tests/test_brew_bundle_audit.py
+#
+# `python3 -m unittest discover -s runbooks/tests` still works, but it chooses the
+# interpreter on the command line and never reads the block above, so it bypasses
+# the floor.  Prefer the direct form.
 """Focused unit tests for the receipt-independent Homebrew audit graph."""
 
 from __future__ import annotations
@@ -16,6 +34,16 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "dot_local" / "bin" / "executable_brew_bundle_audit"
+
+# exec_module() below writes a bytecode cache next to SCRIPT, i.e. into
+# dot_local/bin/__pycache__/ in the source tree.  That directory has no chezmoi
+# prefix, so chezmoi treats it as a source entry and materialises it as
+# ~/.local/bin/__pycache__/ on the next apply.  A .gitignore rule would not help:
+# chezmoi builds source state from the working tree, not from git's index.  And
+# because dot_local/bin is deliberately not exact_ (R1), the junk would never be
+# cleaned up again.  Suppress the write instead of ignoring the artefact.
+sys.dont_write_bytecode = True
+
 LOADER = importlib.machinery.SourceFileLoader("brew_bundle_audit", str(SCRIPT))
 SPEC = importlib.util.spec_from_loader(LOADER.name, LOADER)
 assert SPEC is not None
