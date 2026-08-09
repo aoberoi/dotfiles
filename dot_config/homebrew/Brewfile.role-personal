@@ -34,3 +34,7 @@ cask "mkvtoolnix-app"
 # to the base Brewfile is the whole change.
 tap "deskflow/tap"
   cask "deskflow/tap/deskflow"
+
+# AI
+# Multi-modal AI summarizer.
+brew "summarize"
