@@ -428,6 +428,23 @@ chezmoi doctor
 
 Add `--source="$PWD"` to all of the above if `chezmoi source-path` is not this checkout.
 
+### The `brew_bundle_audit` unit tests
+
+`dot_local/bin/executable_brew_bundle_audit` is the one source entry with tests. Run them
+directly — the file is executable and carries a `uv run --script` shebang:
+
+```sh
+./runbooks/tests/test_brew_bundle_audit.py
+```
+
+Both that file and the script declare `requires-python = ">=3.11"` in a PEP 723 block, because
+the script needs `tomllib` and `#!/usr/bin/env python3` can resolve to the 3.9.6 Xcode CLT stub
+on a stripped-down `$PATH`. It is a **floor, not a pin**: uv reuses an already-installed
+interpreter satisfying it and downloads nothing, so the two files are guaranteed to be ≥3.11
+but not guaranteed to be the *same* interpreter. Restate the block in both files if it changes —
+the test `exec_module()`s the script, so the script's own shebang is never consulted, and
+`python3 -m unittest discover` bypasses the floor entirely by choosing the interpreter itself.
+
 **Test the per-machine matrix when you touch anything role- or machine-gated.** Varying
 `.role` and `.machine` is the feature being bought; exercise both values and confirm the git
 email, the personal-only KDE credential block, the shared Azure GCM default, the secrets file

@@ -1,4 +1,19 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# ///
+#
+# This needs 3.11+ for tomllib.  A bare `#!/usr/bin/env python3` shebang does not
+# say that — it resolves to whatever is first on $PATH, and on a stripped-down
+# PATH (launchd, cron, a non-login ssh shell) that is /usr/bin/python3, which is
+# the 3.9.6 Xcode CLT stub and dies at `import tomllib`.  The PEP 723 block above
+# makes uv enforce the floor before the first line runs.
+#
+# Deliberately a floor and not a pin: uv reuses any installed interpreter that
+# satisfies it — today Homebrew's python@3 — rather than downloading a managed
+# CPython, so this adds no per-machine state outside the repo.  Costs ~30ms once
+# uv's env cache is warm.  Keep this in sync with the same block in
+# runbooks/tests/test_brew_bundle_audit.py.
 """Audit installed Homebrew packages against this machine's effective Brewfile.
 
 The report is deliberately read-only.  Its primary classification uses current
