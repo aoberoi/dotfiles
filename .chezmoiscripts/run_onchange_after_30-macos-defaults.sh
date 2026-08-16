@@ -36,6 +36,20 @@ defaults write NSGlobalDomain NSNavPanelExpandedStateForSaveMode2 -bool true
 # Show App Switcher (Cmd+Tab) on all displays. The default only shows the it on the display with the Dock, but when I
 # use an external display I often leave the Dock on the laptop display.
 defaults write com.apple.dock appswitcher-all-displays -bool true
+
+# Mission Control
+# Keep Spaces in a predictable order, show each window independently in Mission
+# Control, and give each display its own Spaces.
+defaults write com.apple.dock mru-spaces -bool false
+defaults write com.apple.dock expose-group-apps -bool false
+defaults write com.apple.spaces spans-displays -bool false
+
+# Activating an app should take me to the Space where its windows are open.
+defaults write -g AppleSpacesSwitchOnActivate -bool true
+
+# Dragging a window to the top of the screen should enter Mission Control.
+defaults write com.apple.dock enterMissionControlByTopWindowDrag -bool true
+
 # Reload Settings that were applied programatically
 /System/Library/PrivateFrameworks/SystemAdministration.framework/Resources/activateSettings -u
 
